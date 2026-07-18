@@ -15,7 +15,7 @@ import sys
 from werkzeug.security import generate_password_hash
 
 # 数据库文件路径
-DB_PATH = 'test.db'
+DB_PATH = 'sjk.db'
 
 
 def get_db_connection():

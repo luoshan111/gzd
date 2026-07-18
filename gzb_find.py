@@ -1,6 +1,6 @@
 import sqlite3
 # 创建或连接数据库
-conn = sqlite3.connect("test.db")
+conn = sqlite3.connect("sjk.db")
 while True:
     name = input("请输入要查询的姓名（输入'0'退出）：")
     if name.lower() == '0':

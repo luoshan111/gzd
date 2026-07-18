@@ -18,7 +18,7 @@ app = Flask(__name__)
 app.secret_key = 'gongzidan_secret_key_2026'
 
 # 常量配置
-DB_PATH = 'test.db'              # SQLite数据库文件路径
+DB_PATH = 'sjk.db'               # SQLite数据库文件路径
 INPUT_XLSX = 'input.xlsx'        # 输入Excel文件路径
 OUTPUT_XLSX = 'output.xlsx'      # 导出Excel文件路径
 MANUAL_OUTPUT_XLSX = 'shuchu.xlsx'  # 手动导出Excel文件路径

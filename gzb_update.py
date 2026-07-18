@@ -2,7 +2,7 @@ import sqlite3
 import pandas as pd
 from pypinyin import pinyin, lazy_pinyin, Style
 # 创建或连接数据库
-conn = sqlite3.connect("test.db")
+conn = sqlite3.connect("sjk.db")
 ##看看是要哪个文件读入数据
 df= pd.read_excel('aaa.xlsx', dtype={'phone': str})
 # df = pd.read_csv('employees(2).csv', dtype={'phone': str})

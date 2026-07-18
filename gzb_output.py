@@ -1,6 +1,6 @@
 import sqlite3
 import pandas as pd
-conn = sqlite3.connect("test.db")
+conn = sqlite3.connect("sjk.db")
 ##看看是要哪个文件读入数据
 df= pd.read_excel('input.xlsx')
 
