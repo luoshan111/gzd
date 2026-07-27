@@ -1,0 +1,1253 @@
+<!--
+================================================================================
+文件名称: index.html
+文件描述: 员工信息管理系统主页面
+主要功能:
+    1. 人员查询 - 支持按姓名或拼音首字母搜索员工信息
+    2. 录入/更新 - 新增或编辑员工基本信息（姓名、身份证、银行账号等）
+    3. 导出Excel - 将员工信息导出为Excel文件，支持文件匹配和手动输入两种方式
+    4. 用户认证 - 登录状态检查、显示当前用户、退出登录功能
+    5. 权限管理 - 管理员用户可访问后台管理页面
+
+技术栈:
+    - 前端: HTML5 + CSS3 + JavaScript (原生)
+    - 样式: 渐变配色、响应式布局、动画效果
+    - 后端API: RESTful接口 (/api/*)
+================================================================================
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>员工信息管理系统</title>
+    <style>
+        /* ============================================================
+           全局样式 - 重置浏览器默认样式，设置全局字体和背景
+           ============================================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* ============================================================
+           主容器样式 - 页面主体内容区域
+           ============================================================ */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        /* ============================================================
+           头部样式 - 页面顶部导航栏和用户信息展示区
+           ============================================================ */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 头部左侧：系统标题和副标题 */
+        .header-left h1 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+
+        .header-left p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        /* 头部右侧：用户信息和操作按钮 */
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* 用户信息显示区域 */
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 25px;
+            font-size: 0.95rem;
+        }
+
+        .user-info .user-icon {
+            font-size: 1.2rem;
+        }
+
+        /* 退出登录按钮 */
+        .btn-logout {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-logout:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 管理后台入口按钮 */
+        .btn-admin {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .btn-admin:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* ============================================================
+           标签页导航样式 - 三个功能模块的切换标签
+           ============================================================ */
+        .tabs {
+            display: flex;
+            background: #f0f2f5;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 18px 20px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s ease;
+            border: none;
+            background: none;
+        }
+
+        .tab:hover {
+            background: #e8eaf0;
+            color: #667eea;
+        }
+
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            font-weight: 600;
+        }
+
+        /* ============================================================
+           面板样式 - 各功能模块的内容区域
+           ============================================================ */
+        .panel {
+            display: none;
+            padding: 30px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        /* 面板切换动画效果 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ============================================================
+           搜索面板样式 - 查询功能区域的样式定义
+           ============================================================ */
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 14px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        /* ============================================================
+           按钮样式 - 通用按钮及不同状态按钮的颜色定义
+           ============================================================ */
+        .btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        /* 主要操作按钮样式 */
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        /* 成功/确认操作按钮样式 */
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(17, 153, 142, 0.4);
+        }
+
+        /* 危险/删除操作按钮样式 */
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(235, 51, 73, 0.4);
+        }
+
+        /* ============================================================
+           表格样式 - 搜索结果和数据展示表格
+           ============================================================ */
+        .table-container {
+            overflow-x: auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background: #f8f9ff;
+        }
+
+        /* ============================================================
+           表单样式 - 员工信息录入表单
+           ============================================================ */
+        .form-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .form-buttons .btn {
+            flex: 1;
+        }
+
+        /* ============================================================
+           消息提示样式 - 操作反馈信息显示
+           ============================================================ */
+        .message {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* ============================================================
+           导出面板样式 - Excel导出功能区域
+           ============================================================ */
+        .export-section {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .export-section h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .export-section p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .export-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        /* ============================================================
+           员工列表样式 - 录入面板中的已有人员列表
+           ============================================================ */
+        .employee-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+        }
+
+        .employee-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .employee-item:hover {
+            background: #f8f9ff;
+        }
+
+        .employee-item:last-child {
+            border-bottom: none;
+        }
+
+        .employee-item .name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .employee-item .phone {
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        .employee-item .actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* 小尺寸按钮 */
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+        }
+
+        /* 空状态提示样式 */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* ============================================================
+           手动输入导出样式 - 手动输入姓名进行导出的功能区域
+           ============================================================ */
+        .manual-export-section {
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+            border: 2px dashed #667eea;
+        }
+
+        .manual-export-section h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .manual-export-section p {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+
+        /* 姓名输入框容器 */
+        .name-input-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .name-input-box input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+
+        .name-input-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* 已添加姓名列表 */
+        .name-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* 姓名标签样式 */
+        .name-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.95rem;
+        }
+
+        .name-tag .remove {
+            cursor: pointer;
+            font-weight: bold;
+            opacity: 0.8;
+        }
+
+        .name-tag .remove:hover {
+            opacity: 1;
+        }
+
+        .export-options {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        /* 分隔线样式 */
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 25px 0;
+            color: #999;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e0e0e0;
+        }
+
+        .divider span {
+            padding: 0 15px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- ==================== 主容器开始 ==================== -->
+    <div class="container">
+        
+        <!-- ==================== 页面头部 ==================== -->
+        <!-- 包含系统标题、当前用户信息和操作按钮 -->
+        <div class="header">
+            <!-- 头部左侧：系统名称和描述 -->
+            <div class="header-left">
+                <h1>员工信息管理系统</h1>
+                <p>查询 · 录入 · 导出 - 轻松管理员工信息</p>
+            </div>
+            <!-- 头部右侧：用户信息和功能按钮 -->
+            <div class="header-right">
+                <!-- 当前登录用户信息显示 -->
+                <div class="user-info">
+                    <span class="user-icon">👤</span>
+                    <span id="currentUsername">加载中...</span>
+                </div>
+                <!-- 管理后台入口（仅管理员可见） -->
+                <a href="/admin" class="btn-admin" id="adminBtn" style="display: none;">⚙️ 管理后台</a>
+                <!-- 退出登录按钮 -->
+                <button class="btn-logout" onclick="logout()">退出登录</button>
+            </div>
+        </div>
+
+        <!-- ==================== 标签页导航 ==================== -->
+        <!-- 三个功能模块的切换标签 -->
+        <div class="tabs">
+            <button class="tab active" data-panel="search">🔍 人员查询</button>
+            <button class="tab" data-panel="entry">📝 录入/更新</button>
+            <button class="tab" data-panel="export">📊 导出Excel</button>
+        </div>
+
+        <!-- ==================== 查询面板 ==================== -->
+        <!-- 功能：按姓名或拼音首字母搜索员工信息 -->
+        <div class="panel active" id="search">
+            <!-- 搜索输入区域 -->
+            <div class="search-box">
+                <input type="text" class="search-input" id="searchInput" placeholder="请输入姓名或拼音首字母进行搜索...">
+                <button class="btn btn-primary" onclick="searchEmployee()">搜索</button>
+            </div>
+            <!-- 搜索结果展示区域 -->
+            <div id="searchResults">
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="M21 21l-4.35-4.35"></path>
+                    </svg>
+                    <p>输入姓名或拼音首字母进行搜索</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== 录入/更新面板 ==================== -->
+        <!-- 功能：新增或编辑员工基本信息 -->
+        <div class="panel" id="entry">
+            <div class="form-container">
+                <!-- 操作消息提示区域 -->
+                <div id="entryMessage"></div>
+
+                <!-- 表单标题 -->
+                <h3 style="margin-bottom: 20px; color: #333;" id="formTitle">新增员工信息</h3>
+
+                <!-- 员工信息录入表单 -->
+                <!-- 姓名输入框（必填） -->
+                <div class="form-group">
+                    <label for="realName">姓名 *</label>
+                    <input type="text" id="realName" placeholder="请输入姓名" required>
+                </div>
+
+                <!-- 身份证号输入框 -->
+                <div class="form-group">
+                    <label for="idNumber">身份证号</label>
+                    <input type="text" id="idNumber" placeholder="请输入身份证号">
+                </div>
+
+                <!-- 银行账号输入框 -->
+                <div class="form-group">
+                    <label for="bankAccount">银行账号</label>
+                    <input type="text" id="bankAccount" placeholder="请输入银行账号">
+                </div>
+
+                <!-- 银行地址输入框 -->
+                <div class="form-group">
+                    <label for="bankAddress">银行地址</label>
+                    <input type="text" id="bankAddress" placeholder="请输入银行地址">
+                </div>
+
+                <!-- 电话号码输入框 -->
+                <div class="form-group">
+                    <label for="phone">电话号码</label>
+                    <input type="text" id="phone" placeholder="请输入电话号码">
+                </div>
+
+                <!-- 表单操作按钮 -->
+                <div class="form-buttons">
+                    <button class="btn btn-primary" onclick="saveEmployee()">保存</button>
+                    <button class="btn btn-success" onclick="clearForm()">清空表单</button>
+                </div>
+
+                <!-- 已有人员列表（点击可编辑） -->
+                <h4 style="margin: 30px 0 15px; color: #333;">已有人员列表（点击可编辑）</h4>
+                <div class="employee-list" id="employeeList">
+                    <div class="empty-state">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== 导出面板 ==================== -->
+        <!-- 功能：将员工信息导出为Excel文件 -->
+        <div class="panel" id="export">
+            <!-- 方式一：匹配input.xlsx文件导出 -->
+            <div class="export-section">
+                <div class="export-icon">📋</div>
+                <h2>导出员工信息汇总表</h2>
+                <p>将input.xlsx中的姓名与数据库中的信息进行匹配，生成完整的员工信息汇总表</p>
+                <button class="btn btn-success" onclick="exportExcel()">导出Excel</button>
+                <!-- 导出消息提示区域 -->
+                <div id="exportMessage"></div>
+            </div>
+
+            <!-- 分隔线 -->
+            <div class="divider"><span>或</span></div>
+
+            <!-- 方式二：手动输入姓名导出 -->
+            <div class="manual-export-section">
+                <h3>📝 手动输入姓名导出</h3>
+                <p>直接在下方输入姓名，按回车添加，可添加多个姓名，添加完成后点击"导出选定人员"</p>
+
+                <!-- 姓名输入区域 -->
+                <div class="name-input-box">
+                    <input type="text" id="manualNameInput" placeholder="输入姓名后按回车添加..." onkeypress="handleNameInput(event)">
+                    <button class="btn btn-primary" onclick="addName()">添加</button>
+                </div>
+
+                <!-- 已添加姓名标签展示区域 -->
+                <div class="name-list" id="nameList">
+                    <!-- 添加的姓名会显示在这里 -->
+                </div>
+
+                <!-- 导出按钮 -->
+                <button class="btn btn-success" onclick="exportManualExcel()">导出选定人员 (shuchu.xlsx)</button>
+                <!-- 导出消息提示区域 -->
+                <div id="manualExportMessage"></div>
+            </div>
+
+            <!-- input.xlsx文件预览区域 -->
+            <div style="margin-top: 30px;">
+                <h4 style="margin-bottom: 15px; color: #333;">input.xlsx 预览</h4>
+                <div class="table-container" id="inputPreview">
+                    <div class="empty-state">加载中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ==================== 主容器结束 ==================== -->
+
+    <!-- ==================== JavaScript代码 ==================== -->
+    <script>
+        /* ***********************************************************
+         * 系统初始化模块
+         * 页面加载时检查登录状态并初始化界面
+         * *********************************************************** */
+
+        /**
+         * 检查用户登录状态
+         * @description 向服务器发送请求验证当前用户的登录状态
+         *              如果未登录则跳转到登录页面
+         *              如果已登录则显示用户名和管理员权限
+         * @returns {Promise<void>} 无返回值
+         */
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/check-login');
+                const result = await response.json();
+                
+                // 未登录则跳转到登录页面
+                if (!result.logged_in) {
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                // 显示当前用户名
+                document.getElementById('currentUsername').textContent = result.username;
+                
+                // 如果是管理员，显示管理后台按钮
+                if (result.is_admin) {
+                    document.getElementById('adminBtn').style.display = 'inline-block';
+                }
+            } catch (error) {
+                // 请求失败则跳转到登录页面
+                window.location.href = '/login';
+            }
+        }
+
+        /**
+         * 用户退出登录
+         * @description 向服务器发送登出请求，然后跳转到登录页面
+         * @returns {Promise<void>} 无返回值
+         */
+        async function logout() {
+            try {
+                await fetch('/api/logout', {method: 'POST'});
+                window.location.href = '/login';
+            } catch (error) {
+                window.location.href = '/login';
+            }
+        }
+
+        // 页面加载时检查登录状态
+        checkLoginStatus();
+
+        /* ***********************************************************
+         * 标签页切换模块
+         * 实现三个功能面板之间的切换
+         * *********************************************************** */
+
+        // 为每个标签绑定点击事件
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // 移除所有标签和面板的active状态
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+
+                // 为当前点击的标签和对应面板添加active状态
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.panel).classList.add('active');
+
+                // 根据切换到面板加载对应数据
+                if (tab.dataset.panel === 'entry') {
+                    loadEmployeeList();
+                } else if (tab.dataset.panel === 'export') {
+                    loadInputPreview();
+                }
+            });
+        });
+
+        /* ***********************************************************
+         * 搜索功能模块
+         * 实现员工信息的搜索和结果展示
+         * *********************************************************** */
+
+        /**
+         * 搜索员工信息
+         * @description 根据输入的姓名或拼音首字母搜索员工信息
+         *              成功后在页面上展示搜索结果
+         * @returns {Promise<void>} 无返回值
+         */
+        async function searchEmployee() {
+            const name = document.getElementById('searchInput').value.trim();
+            
+            // 验证输入
+            if (!name) {
+                showMessage('searchResults', '请输入搜索关键词', 'error');
+                return;
+            }
+
+            try {
+                // 发送搜索请求
+                const response = await fetch(`/api/search?name=${encodeURIComponent(name)}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    displaySearchResults(result.data);
+                } else {
+                    showMessage('searchResults', result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('searchResults', '搜索失败: ' + error.message, 'error');
+            }
+        }
+
+        /**
+         * 展示搜索结果
+         * @description 将搜索结果以表格形式展示在页面上
+         * @param {Array<Object>} data - 搜索结果数组，每个元素包含员工信息
+         * @param {string} data[].real_name - 员工姓名
+         * @param {string} data[].id_number - 身份证号
+         * @param {string} data[].bank_account - 银行账号
+         * @param {string} data[].bank_address - 银行地址
+         * @param {string} data[].phone - 电话号码
+         * @returns {void} 无返回值
+         */
+        function displaySearchResults(data) {
+            const container = document.getElementById('searchResults');
+
+            // 无结果时显示空状态
+            if (!data || data.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="M21 21l-4.35-4.35"></path>
+                        </svg>
+                        <p>未找到匹配的记录</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 构建结果表格HTML
+            let html = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>姓名</th>
+                                <th>身份证号</th>
+                                <th>银行账号</th>
+                                <th>银行地址</th>
+                                <th>电话</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            // 遍历数据生成表格行
+            data.forEach(item => {
+                html += `
+                    <tr>
+                        <td><strong>${item.real_name}</strong></td>
+                        <td>${item.id_number || '-'}</td>
+                        <td>${item.bank_account || '-'}</td>
+                        <td>${item.bank_address || '-'}</td>
+                        <td>${item.phone || '-'}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        // 为搜索输入框绑定回车事件
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchEmployee();
+            }
+        });
+
+        /* ***********************************************************
+         * 员工管理模块
+         * 实现员工列表加载、编辑、保存、删除功能
+         * *********************************************************** */
+
+        /**
+         * 加载员工列表
+         * @description 从服务器获取所有员工信息并展示在列表中
+         *              每个员工项包含编辑和删除按钮
+         * @returns {Promise<void>} 无返回值
+         */
+        async function loadEmployeeList() {
+            try {
+                const response = await fetch('/api/employees');
+                const result = await response.json();
+
+                const container = document.getElementById('employeeList');
+
+                if (result.success && result.data.length > 0) {
+                    let html = '';
+                    result.data.forEach(item => {
+                        html += `
+                            <div class="employee-item">
+                                <div>
+                                    <div class="name">${item.real_name}</div>
+                                    <div class="phone">${item.phone || '无电话'}</div>
+                                </div>
+                                <div class="actions">
+                                    <button class="btn btn-primary btn-sm" onclick="editEmployee('${item.real_name}', '${item.id_number || ''}', '${item.bank_account || ''}', '${item.bank_address || ''}', '${item.phone || ''}')">编辑</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteEmployee('${item.real_name}')">删除</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div class="empty-state">暂无员工数据</div>';
+                }
+            } catch (error) {
+                document.getElementById('employeeList').innerHTML = '<div class="empty-state">加载失败</div>';
+            }
+        }
+
+        /**
+         * 编辑员工信息
+         * @description 将选中员工的信息填充到表单中，以便修改
+         * @param {string} realName - 员工姓名
+         * @param {string} idNumber - 身份证号
+         * @param {string} bankAccount - 银行账号
+         * @param {string} bankAddress - 银行地址
+         * @param {string} phone - 电话号码
+         * @returns {void} 无返回值
+         */
+        function editEmployee(realName, idNumber, bankAccount, bankAddress, phone) {
+            document.getElementById('realName').value = realName;
+            document.getElementById('idNumber').value = idNumber;
+            document.getElementById('bankAccount').value = bankAccount;
+            document.getElementById('bankAddress').value = bankAddress;
+            document.getElementById('phone').value = phone;
+
+            // 聚焦到姓名输入框
+            document.getElementById('realName').focus();
+        }
+
+        /**
+         * 保存员工信息
+         * @description 将表单中的员工信息提交到服务器保存
+         *              如果姓名已存在则更新，否则新增
+         * @returns {Promise<void>} 无返回值
+         */
+        async function saveEmployee() {
+            // 收集表单数据
+            const data = {
+                real_name: document.getElementById('realName').value.trim(),
+                id_number: document.getElementById('idNumber').value.trim(),
+                bank_account: document.getElementById('bankAccount').value.trim(),
+                bank_address: document.getElementById('bankAddress').value.trim(),
+                phone: document.getElementById('phone').value.trim()
+            };
+
+            // 验证必填字段
+            if (!data.real_name) {
+                showMessage('entryMessage', '姓名为必填项', 'error');
+                return;
+            }
+
+            try {
+                // 发送保存请求
+                const response = await fetch('/api/employee', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('entryMessage', result.message, 'success');
+                    loadEmployeeList();
+                    clearForm();
+                } else {
+                    showMessage('entryMessage', result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('entryMessage', '保存失败: ' + error.message, 'error');
+            }
+        }
+
+        /**
+         * 删除员工信息
+         * @description 从数据库中删除指定员工的所有信息
+         *              删除前会弹出确认对话框
+         * @param {string} name - 要删除的员工姓名
+         * @returns {Promise<void>} 无返回值
+         */
+        async function deleteEmployee(name) {
+            // 确认删除操作
+            if (!confirm(`确定要删除 "${name}" 吗？`)) {
+                return;
+            }
+
+            try {
+                // 发送删除请求
+                const response = await fetch(`/api/employee/${encodeURIComponent(name)}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('entryMessage', result.message, 'success');
+                    loadEmployeeList();
+                } else {
+                    showMessage('entryMessage', result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('entryMessage', '删除失败: ' + error.message, 'error');
+            }
+        }
+
+        /**
+         * 清空表单
+         * @description 清空录入表单中的所有输入内容
+         * @returns {void} 无返回值
+         */
+        function clearForm() {
+            document.getElementById('realName').value = '';
+            document.getElementById('idNumber').value = '';
+            document.getElementById('bankAccount').value = '';
+            document.getElementById('bankAddress').value = '';
+            document.getElementById('phone').value = '';
+        }
+
+        /* ***********************************************************
+         * Excel导出模块
+         * 实现员工信息的Excel导出功能
+         * *********************************************************** */
+
+        /**
+         * 导出Excel文件
+         * @description 将input.xlsx中的姓名与数据库匹配后导出完整的员工信息表
+         *              导出成功后自动触发文件下载
+         * @returns {Promise<void>} 无返回值
+         */
+        async function exportExcel() {
+            try {
+                const response = await fetch('/api/export', {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('exportMessage', '导出成功！准备下载...', 'success');
+                    // 延迟触发下载
+                    setTimeout(() => {
+                        window.location.href = '/api/download/output.xlsx';
+                    }, 1000);
+                } else {
+                    showMessage('exportMessage', result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('exportMessage', '导出失败: ' + error.message, 'error');
+            }
+        }
+
+        /**
+         * 加载input.xlsx预览
+         * @description 从服务器获取input.xlsx文件内容并展示预览
+         * @returns {Promise<void>} 无返回值
+         */
+        async function loadInputPreview() {
+            try {
+                const response = await fetch('/api/input-preview');
+                const result = await response.json();
+
+                const container = document.getElementById('inputPreview');
+
+                if (result.success) {
+                    // 构建预览表格
+                    let html = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    ${result.columns.map(col => `<th>${col}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    // 遍历每一行数据
+                    result.data.forEach(row => {
+                        html += '<tr>';
+                        result.columns.forEach(col => {
+                            html += `<td>${row[col] || ''}</td>`;
+                        });
+                        html += '</tr>';
+                    });
+
+                    html += '</tbody></table>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = `<div class="empty-state">${result.message}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('inputPreview').innerHTML = '<div class="empty-state">加载失败</div>';
+            }
+        }
+
+        /* ***********************************************************
+         * 工具函数模块
+         * 提供消息显示等通用功能
+         * *********************************************************** */
+
+        /**
+         * 显示消息提示
+         * @description 在指定位置显示操作结果消息，3秒后自动消失
+         * @param {string} elementId - 要显示消息的元素ID
+         * @param {string} text - 消息文本内容
+         * @param {string} type - 消息类型：'success'成功、'error'错误、'info'信息
+         * @returns {void} 无返回值
+         */
+        function showMessage(elementId, text, type) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = `<div class="message ${type}">${text}</div>`;
+
+            // 3秒后清除消息
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 3000);
+        }
+
+        /* ***********************************************************
+         * 手动输入导出模块
+         * 实现手动输入姓名并导出选定人员的功能
+         * *********************************************************** */
+
+        /** @type {string[]} 已添加的姓名列表 */
+        let nameList = [];
+
+        /**
+         * 处理姓名输入键盘事件
+         * @description 监听回车键，按回车时添加输入的姓名
+         * @param {KeyboardEvent} event - 键盘事件对象
+         * @returns {void} 无返回值
+         */
+        function handleNameInput(event) {
+            if (event.key === 'Enter') {
+                addName();
+            }
+        }
+
+        /**
+         * 添加姓名到列表
+         * @description 将输入框中的姓名添加到导出列表中
+         *              自动去重，添加成功后清空输入框并刷新显示
+         * @returns {void} 无返回值
+         */
+        function addName() {
+            const input = document.getElementById('manualNameInput');
+            const name = input.value.trim();
+
+            // 空值不处理
+            if (!name) return;
+
+            // 检查重复
+            if (nameList.includes(name)) {
+                showMessage('manualExportMessage', '该姓名已添加', 'error');
+                return;
+            }
+
+            // 添加到列表并刷新显示
+            nameList.push(name);
+            input.value = '';
+            renderNameList();
+        }
+
+        /**
+         * 从列表中移除姓名
+         * @description 从导出列表中删除指定的姓名
+         * @param {string} name - 要移除的姓名
+         * @returns {void} 无返回值
+         */
+        function removeName(name) {
+            nameList = nameList.filter(n => n !== name);
+            renderNameList();
+        }
+
+        /**
+         * 渲染姓名列表
+         * @description 将已添加的姓名以标签形式展示在页面上
+         *              每个标签带有删除按钮
+         * @returns {void} 无返回值
+         */
+        function renderNameList() {
+            const container = document.getElementById('nameList');
+
+            if (nameList.length === 0) {
+                container.innerHTML = '<span style="color: #999;">暂无添加的姓名</span>';
+                return;
+            }
+
+            let html = '';
+            nameList.forEach(name => {
+                html += `<span class="name-tag">${name} <span class="remove" onclick="removeName('${name}')">&times;</span></span>`;
+            });
+            container.innerHTML = html;
+        }
+
+        /**
+         * 导出选定人员的Excel文件
+         * @description 根据手动添加的姓名列表，从数据库中查找对应信息并导出
+         *              导出成功后自动触发文件下载(shuchu.xlsx)
+         * @returns {Promise<void>} 无返回值
+         */
+        async function exportManualExcel() {
+            // 检查是否有选定的姓名
+            if (nameList.length === 0) {
+                showMessage('manualExportMessage', '请先添加姓名', 'error');
+                return;
+            }
+
+            try {
+                // 发送导出请求
+                const response = await fetch('/api/export-manual', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({names: nameList})
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('manualExportMessage', '导出成功！准备下载...', 'success');
+                    // 延迟触发下载
+                    setTimeout(() => {
+                        window.location.href = '/api/download/shuchu.xlsx';
+                    }, 1000);
+                } else {
+                    showMessage('manualExportMessage', result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('manualExportMessage', '导出失败: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

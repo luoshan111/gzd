@@ -1,35 +1,30 @@
-import sqlite3
-import pandas as pd
-conn = sqlite3.connect("sjk.db")
-##看看是要哪个文件读入数据
-df= pd.read_excel('input.xlsx')
+"""
+员工信息批量导出脚本
+读取 input.xlsx 中的姓名列表，匹配数据库信息后导出到 output.xlsx。
+数据库中不存在的姓名导出为空行。
 
-# 输出一个已经有名字的表格
-sql_real_name = conn.execute("SELECT real_name FROM employees").fetchall()
-existing_names = [name[0] for name in sql_real_name]  # 转换为列表
-for i in range(len(df)):
-    if df['姓名'][i] in existing_names:
-        #各个数据
-        cursor = conn.execute("SELECT * FROM employees WHERE real_name=?", (df['姓名'][i],))
-        result = cursor.fetchall()
+用法:
+    python gzb_output.py
+"""
 
-        for row in result:
-            print(f'''
-                  姓名: {row[0]}, 
-                  身份证号: {row[1]}, 
-                  银行账号: {row[2]},
-                  银行地址: {row[3]}, 
-                  电话: {row[4]}
-                  ''')
-        #开始写入
-        df.loc[i, '身份证号'] = result[0][1]
-        df.loc[i, '银行账号'] = result[0][2]
-        df.loc[i, '银行地址'] = result[0][3]
-        df.loc[i, '电话'] = result[0][4]
-    else: #开始写入
-        df.loc[i, '身份证号'] = 0
-        df.loc[i, '银行账号'] = 0
-        df.loc[i, '银行地址'] = 0
-        df.loc[i, '电话'] = 0
-# 保存回 Excel
-df.to_excel('output.xlsx', index=False, engine='openpyxl')
+import config
+from excel_utils import read_names, export_employees
+
+
+def main() -> None:
+    try:
+        names = read_names(config.INPUT_XLSX)
+    except FileNotFoundError as e:
+        print(f"错误：{e}")
+        return
+
+    if not names:
+        print("input.xlsx 中没有姓名数据")
+        return
+
+    total, matched = export_employees(names, config.OUTPUT_XLSX)
+    print(f"导出完成：共 {total} 条，其中 {matched} 条匹配到数据 -> {config.OUTPUT_XLSX}")
+
+
+if __name__ == '__main__':
+    main()

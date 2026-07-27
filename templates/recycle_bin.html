@@ -1,0 +1,433 @@
+<!--
+================================================================================
+文件名称: recycle_bin.html
+文件描述: 回收站页面 - 员工信息管理系统
+主要功能:
+    1. 查看已删除（软删除）的员工记录，含删除时间和删除人
+    2. 恢复员工记录到在职列表
+    3. 彻底删除员工记录（物理删除，仅管理员，不可恢复）
+技术栈:
+    - 前端: HTML5 + CSS3 + JavaScript (原生)
+    - 后端API: /api/recycle-bin, /api/employee/<name>/restore, /api/employee/<name>/permanent
+================================================================================
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>回收站 - 员工信息管理系统</title>
+    <style>
+        /* 全局样式（与主页一致的紫色主题） */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        /* 页面头部 */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 {
+            font-size: 1.6rem;
+            margin-bottom: 5px;
+        }
+
+        .header-left p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 25px;
+            font-size: 0.95rem;
+        }
+
+        .btn-header {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .btn-header:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* 内容区域 */
+        .content {
+            padding: 30px;
+        }
+
+        .tip {
+            background: #fff8e1;
+            border: 1px solid #ffe0b2;
+            color: #8d6e63;
+            border-radius: 10px;
+            padding: 12px 18px;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+
+        /* 消息提示 */
+        .message {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* 表格 */
+        .table-container {
+            overflow-x: auto;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tr:hover {
+            background: #f8f9ff;
+        }
+
+        /* 按钮 */
+        .btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(17, 153, 142, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(235, 51, 73, 0.4);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 40px;
+            color: #999;
+        }
+
+        .empty-state .icon {
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+        }
+
+        .deleted-info {
+            color: #888;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 页面头部 -->
+        <div class="header">
+            <div class="header-left">
+                <h1>🗑️ 回收站</h1>
+                <p>已删除的员工记录在此保留，可随时恢复</p>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <span>👤</span>
+                    <span id="currentUsername">加载中...</span>
+                </div>
+                <a href="/" class="btn-header">← 返回主页</a>
+                <button class="btn-header" onclick="logout()">退出登录</button>
+            </div>
+        </div>
+
+        <!-- 内容区域 -->
+        <div class="content">
+            <div id="messageBox"></div>
+
+            <div class="tip">
+                💡 此处的记录已从查询、列表和导出中移除，但数据仍完整保留；
+                点击"恢复"可还原到在职员工列表。"彻底删除"仅管理员可操作，删除后不可恢复。
+            </div>
+
+            <div id="recycleList">
+                <div class="empty-state">
+                    <div class="icon">⏳</div>
+                    <p>加载中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /** 当前用户是否管理员（控制"彻底删除"按钮的显示） */
+        let isAdmin = false;
+
+        /**
+         * 检查登录状态：未登录跳转到登录页；记录管理员身份
+         */
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/check-login');
+                const result = await response.json();
+
+                if (!result.logged_in) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                document.getElementById('currentUsername').textContent = result.username;
+                isAdmin = !!result.is_admin;
+                loadRecycleBin();
+            } catch (error) {
+                window.location.href = '/login';
+            }
+        }
+
+        /**
+         * 退出登录
+         */
+        async function logout() {
+            try {
+                await fetch('/api/logout', {method: 'POST'});
+            } finally {
+                window.location.href = '/login';
+            }
+        }
+
+        /**
+         * 加载回收站列表
+         */
+        async function loadRecycleBin() {
+            const container = document.getElementById('recycleList');
+            try {
+                const response = await fetch('/api/recycle-bin');
+                const result = await response.json();
+
+                if (!result.success || result.data.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">🎉</div>
+                            <p>回收站是空的</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>姓名</th>
+                                    <th>身份证号</th>
+                                    <th>银行账号</th>
+                                    <th>银行地址</th>
+                                    <th>电话</th>
+                                    <th>删除时间</th>
+                                    <th>删除人</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                result.data.forEach(item => {
+                    // "彻底删除"按钮仅管理员可见（后端同时做权限校验）
+                    const permanentBtn = isAdmin
+                        ? `<button class="btn btn-danger btn-sm" onclick="permanentDelete('${item.real_name}')">彻底删除</button>`
+                        : '';
+                    html += `
+                        <tr>
+                            <td><strong>${item.real_name}</strong></td>
+                            <td>${item.id_number || '-'}</td>
+                            <td>${item.bank_account || '-'}</td>
+                            <td>${item.bank_address || '-'}</td>
+                            <td>${item.phone || '-'}</td>
+                            <td class="deleted-info">${item.deleted_at || '-'}</td>
+                            <td class="deleted-info">${item.deleted_by || '-'}</td>
+                            <td class="actions">
+                                <button class="btn btn-success btn-sm" onclick="restoreEmployee('${item.real_name}')">恢复</button>
+                                ${permanentBtn}
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = '<div class="empty-state"><p>加载失败: ' + error.message + '</p></div>';
+            }
+        }
+
+        /**
+         * 恢复员工记录
+         * @param {string} name - 员工姓名
+         */
+        async function restoreEmployee(name) {
+            if (!confirm(`确定要恢复 "${name}" 吗？恢复后将重新出现在员工列表中。`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/employee/${encodeURIComponent(name)}/restore`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    loadRecycleBin();
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('恢复失败: ' + error.message, 'error');
+            }
+        }
+
+        /**
+         * 彻底删除员工记录（物理删除，不可恢复，仅管理员）
+         * @param {string} name - 员工姓名
+         */
+        async function permanentDelete(name) {
+            if (!confirm(`⚠️ 确定要彻底删除 "${name}" 吗？\n\n此操作将永久删除数据库中的记录，不可恢复！`)) {
+                return;
+            }
+            // 二次确认，防止误操作
+            if (!confirm(`请再次确认：彻底删除 "${name}"，不可恢复！`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/employee/${encodeURIComponent(name)}/permanent`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    loadRecycleBin();
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('删除失败: ' + error.message, 'error');
+            }
+        }
+
+        /**
+         * 显示消息提示，3 秒后自动消失
+         * @param {string} text - 消息文本
+         * @param {string} type - 'success' 或 'error'
+         */
+        function showMessage(text, type) {
+            const container = document.getElementById('messageBox');
+            container.innerHTML = `<div class="message ${type}">${text}</div>`;
+            setTimeout(() => { container.innerHTML = ''; }, 3000);
+        }
+
+        // 页面加载时检查登录状态（成功后自动加载列表）
+        checkLoginStatus();
+    </script>
+</body>
+</html>
