@@ -7,9 +7,9 @@
     python -c "from app import app; app.run(port=5001, debug=True, host='0.0.0.0')"
 """
 
-import logging
 import os
 import sqlite3
+from datetime import datetime
 from functools import wraps
 
 from flask import (Flask, render_template, request, jsonify,
@@ -22,6 +22,7 @@ from db import init_db, query_all, query_one, execute, get_pinyin_sx, escape_lik
 from excel_utils import (read_names, export_employees, IMPORT_COLUMNS,
                          read_employee_excel, classify_import_rows,
                          summarize_import_rows, import_employee_rows)
+from log_utils import setup_logging, read_logs, sys_log, db_log
 
 # 对外返回的员工字段（不含 deleted/deleted_at 等内部审计字段）
 EMPLOYEE_COLUMNS = 'real_name, id_number, bank_account, bank_address, phone, sx'
@@ -31,13 +32,9 @@ RECYCLE_COLUMNS = EMPLOYEE_COLUMNS + ', deleted_at, deleted_by'
 ALLOWED_UPLOAD_EXTENSIONS = {'.xlsx'}
 
 # ---------------------------------------------------------------------------
-# 日志
+# 日志：系统日志（system.log）与数据库改动日志（database.log），按天滚动各保留 30 天
 # ---------------------------------------------------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-)
-logger = logging.getLogger(__name__)
+setup_logging()
 
 # ---------------------------------------------------------------------------
 # 应用实例与初始化
@@ -132,7 +129,7 @@ def handle_exception(e):
     """兜底异常处理：框架级异常原样放行，其余记录日志并返回统一错误。"""
     if isinstance(e, HTTPException):
         return e
-    logger.exception('请求处理出现未捕获异常: %s %s', request.method, request.path)
+    sys_log.exception('请求处理出现未捕获异常: %s %s', request.method, request.path)
     if request.path.startswith('/api/'):
         return api_err(f'服务器内部错误: {e}', status=500)
     return '服务器内部错误', 500
@@ -167,16 +164,17 @@ def api_login():
         session['user_id'] = user['id']
         session['username'] = user['username']
         session['is_admin'] = user['is_admin']
-        logger.info('用户 %s 登录成功', username)
+        sys_log.info('用户 %s 登录成功', username)
         return api_ok('登录成功', is_admin=user['is_admin'])
 
-    logger.info('用户 %s 登录失败', username)
+    sys_log.info('用户 %s 登录失败', username)
     return api_err('用户名或密码错误')
 
 
 @app.route('/api/logout', methods=['POST'])
 def api_logout():
     """登出接口：清除 session。"""
+    sys_log.info('用户 %s 退出登录', session.get('username'))
     session.clear()
     return api_ok('已退出登录')
 
@@ -283,6 +281,7 @@ def save_employee():
         ''', (fields['real_name'], fields['id_number'], fields['bank_account'],
               fields['bank_address'], fields['phone'], fields['sx']))
         message = '信息添加成功'
+        db_log.info('用户 %s 新增员工: %s', session.get('username'), fields['real_name'])
     elif existing['deleted']:
         # 同名记录曾被软删除：恢复并覆盖为新内容，清除删除标记
         execute('''
@@ -292,7 +291,7 @@ def save_employee():
             WHERE real_name=?
         ''', params)
         message = '信息添加成功（已恢复历史记录）'
-        logger.info('恢复已删除员工记录: %s', fields['real_name'])
+        db_log.info('用户 %s 恢复已删除员工记录: %s', session.get('username'), fields['real_name'])
     else:
         execute('''
             UPDATE employees
@@ -300,6 +299,7 @@ def save_employee():
             WHERE real_name=?
         ''', params)
         message = '信息更新成功'
+        db_log.info('用户 %s 更新员工: %s', session.get('username'), fields['real_name'])
 
     return api_ok(message)
 
@@ -317,7 +317,7 @@ def delete_employee(name):
         (session.get('username'), name)
     )
     if deleted:
-        logger.info('用户 %s 删除员工: %s', session.get('username'), name)
+        db_log.info('用户 %s 删除员工: %s', session.get('username'), name)
         return api_ok('删除成功，可在回收站中恢复')
     return api_err('未找到该员工，可能已被删除')
 
@@ -345,7 +345,7 @@ def restore_employee(name):
         (name,)
     )
     if restored:
-        logger.info('用户 %s 从回收站恢复员工: %s', session.get('username'), name)
+        db_log.info('用户 %s 从回收站恢复员工: %s', session.get('username'), name)
         return api_ok('恢复成功')
     return api_err('回收站中未找到该员工')
 
@@ -362,7 +362,7 @@ def permanent_delete_employee(name):
         (name,)
     )
     if deleted:
-        logger.warning('管理员 %s 彻底删除员工: %s', session.get('username'), name)
+        db_log.warning('管理员 %s 彻底删除员工: %s', session.get('username'), name)
         return api_ok('已彻底删除')
     return api_err('回收站中未找到该员工')
 
@@ -390,7 +390,7 @@ def import_preview():
     except ValueError as e:
         return api_err(str(e))
     except Exception as e:
-        logger.warning('导入预览解析失败: %s', e)
+        sys_log.warning('导入预览解析失败: %s', e)
         return api_err('文件解析失败，请确认是有效的 .xlsx 文件')
 
     if not rows:
@@ -424,7 +424,7 @@ def import_confirm():
     rows = classify_import_rows(cleaned)
     result = import_employee_rows(rows)
 
-    logger.info('用户 %s 导入员工: %s', session.get('username'), result)
+    db_log.info('用户 %s 导入员工: %s', session.get('username'), result)
     return api_ok('导入完成', **result)
 
 
@@ -445,9 +445,11 @@ def export_excel():
     try:
         total, matched = export_employees(names, config.OUTPUT_XLSX)
     except Exception as e:
-        logger.exception('导出 Excel 失败')
+        sys_log.exception('导出 Excel 失败')
         return api_err(f'导出失败: {e}')
 
+    sys_log.info('用户 %s 批量导出 Excel: 共 %s 条，匹配 %s 条',
+                session.get('username'), total, matched)
     return api_ok('导出成功', file=config.OUTPUT_XLSX, total=total, matched=matched)
 
 
@@ -464,9 +466,11 @@ def export_manual_excel():
     try:
         total, matched = export_employees(names, config.MANUAL_OUTPUT_XLSX)
     except Exception as e:
-        logger.exception('手动导出 Excel 失败')
+        sys_log.exception('手动导出 Excel 失败')
         return api_err(f'导出失败: {e}')
 
+    sys_log.info('用户 %s 手动导出 Excel: 共 %s 条，匹配 %s 条',
+                session.get('username'), total, matched)
     return api_ok('导出成功', file=config.MANUAL_OUTPUT_XLSX, total=total, matched=matched)
 
 
@@ -479,7 +483,7 @@ def input_preview():
     except FileNotFoundError as e:
         return api_err(str(e))
     except Exception as e:
-        logger.exception('读取 input.xlsx 失败')
+        sys_log.exception('读取 input.xlsx 失败')
         return api_err(str(e))
 
     return api_ok(data=[{'姓名': n} for n in names], columns=['姓名'])
@@ -495,7 +499,45 @@ def download_file(filename):
     path = config.ALLOWED_DOWNLOADS.get(filename)
     if not path or not os.path.exists(path):
         return api_err('文件不存在或不允许下载', status=404)
+    sys_log.info('用户 %s 下载文件: %s', session.get('username'), filename)
     return send_file(path, as_attachment=True)
+
+
+# ==================== 操作日志 API ====================
+
+@app.route('/api/logs')
+@admin_required
+def get_logs():
+    """
+    操作日志查询（仅管理员）。
+    参数: category(system 系统日志 / db 数据库改动日志，默认 system)
+          date(YYYY-MM-DD，默认今天) / level(INFO/WARNING/ERROR/DEBUG)
+          / keyword / page / page_size(默认50，上限200)
+    返回: logs（倒序，最新在前）+ total/pages/stats/dates（可用日期列表）
+    """
+    category = request.args.get('category', 'system').strip() or 'system'
+    date = request.args.get('date', '').strip() or None
+    level = request.args.get('level', '').strip().upper() or None
+    keyword = request.args.get('keyword', '').strip() or None
+
+    if category not in ('system', 'db'):
+        return api_err('无效的日志类别，应为 system 或 db')
+    if date:
+        try:
+            datetime.strptime(date, '%Y-%m-%d')
+        except ValueError:
+            return api_err('日期格式应为 YYYY-MM-DD')
+    if level and level not in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'):
+        return api_err('无效的日志级别')
+
+    try:
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 50))
+    except ValueError:
+        return api_err('分页参数格式错误')
+
+    return api_ok(**read_logs(category=category, date=date, level=level,
+                              keyword=keyword, page=page, page_size=page_size))
 
 
 # ==================== 管理员功能 API ====================
@@ -532,7 +574,7 @@ def create_user():
     except sqlite3.IntegrityError:
         return api_err('用户名已存在')
 
-    logger.info('管理员 %s 创建用户 %s', session.get('username'), username)
+    db_log.info('管理员 %s 创建用户 %s', session.get('username'), username)
     return api_ok('用户创建成功')
 
 
@@ -547,7 +589,7 @@ def delete_user(user_id):
     if not deleted:
         return api_err('用户不存在')
 
-    logger.info('管理员 %s 删除用户 id=%s', session.get('username'), user_id)
+    db_log.info('管理员 %s 删除用户 id=%s', session.get('username'), user_id)
     return api_ok('用户删除成功')
 
 
@@ -568,7 +610,7 @@ def reset_user_password(user_id):
     if not updated:
         return api_err('用户不存在')
 
-    logger.info('管理员 %s 重置用户 id=%s 的密码', session.get('username'), user_id)
+    db_log.info('管理员 %s 重置用户 id=%s 的密码', session.get('username'), user_id)
     return api_ok('密码重置成功')
 
 

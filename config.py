@@ -10,6 +10,7 @@
     GZD_MANUAL_OUTPUT_XLSX 手动导出的输出 Excel
     GZD_PORT               服务端口，默认 5001
     GZD_DEBUG              是否开启调试模式，默认开（设为 0 关闭）
+    GZD_LOG_DIR            日志文件目录（按天滚动，保留 30 天）
 """
 
 import os
@@ -40,3 +41,7 @@ ALLOWED_DOWNLOADS = {
 # 服务运行参数
 PORT = int(os.environ.get('GZD_PORT', '5001'))
 DEBUG = os.environ.get('GZD_DEBUG', '1') != '0'
+
+# 日志目录与当前日志文件（按天滚动：app.log 为当天，历史为 app.log.YYYY-MM-DD）
+LOG_DIR = os.environ.get('GZD_LOG_DIR', os.path.join(BASE_DIR, 'logs'))
+LOG_FILE = os.path.join(LOG_DIR, 'app.log')
