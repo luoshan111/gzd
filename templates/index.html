@@ -611,6 +611,196 @@
             color: #b3560e;
             font-size: 0.85rem;
         }
+
+        /* ==================== 操作日志面板 ==================== */
+        /* 分类切换：系统日志 / 数据库改动日志（分段控件） */
+        .logs-category {
+            display: inline-flex;
+            margin-bottom: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .log-cat-btn {
+            padding: 10px 24px;
+            border: none;
+            background: white;
+            color: #666;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .log-cat-btn + .log-cat-btn {
+            border-left: 2px solid #e0e0e0;
+        }
+
+        .log-cat-btn:hover:not(.active) {
+            background: #f5f7ff;
+            color: #667eea;
+        }
+
+        .log-cat-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        /* 工具栏：日期/级别筛选 + 关键词搜索 + 刷新 */
+        .logs-toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .log-select {
+            padding: 10px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            background: white;
+            color: #333;
+            cursor: pointer;
+        }
+
+        .log-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .log-search {
+            flex: 1;
+            min-width: 180px;
+            padding: 10px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 0.95rem;
+        }
+
+        .log-search:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* 级别统计徽章 */
+        .logs-stats {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .log-stat-badge {
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .log-stat-total { background: #f0f0f0; color: #555; }
+        .log-stat-info { background: #e3f2fd; color: #1565c0; }
+        .log-stat-warning { background: #fff3e0; color: #e65100; }
+        .log-stat-error { background: #ffebee; color: #c62828; }
+
+        /* 日志列表：固定高度滚动，逐行展示 */
+        .logs-list {
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            max-height: 520px;
+            overflow-y: auto;
+        }
+
+        .log-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 14px;
+            border-bottom: 1px solid #f0f0f0;
+            border-left: 4px solid transparent;
+            font-size: 0.92rem;
+        }
+
+        .log-row:last-child { border-bottom: none; }
+        .log-row:hover { background: #f0f4ff; }
+
+        /* 级别配色：左边框 + 行底色区分 */
+        .log-row-level-info { border-left-color: #42a5f5; }
+        .log-row-level-warning { border-left-color: #ffa726; background: #fffdf5; }
+        .log-row-level-error,
+        .log-row-level-critical { border-left-color: #ef5350; background: #fffafa; }
+
+        .log-time {
+            color: #999;
+            font-family: Consolas, Monaco, monospace;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            padding-top: 2px;
+        }
+
+        .log-level-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .log-level-info { background: #e3f2fd; color: #1565c0; }
+        .log-level-warning { background: #fff3e0; color: #e65100; }
+        .log-level-error,
+        .log-level-critical { background: #ffebee; color: #c62828; }
+        .log-level-debug { background: #eceff1; color: #546e7a; }
+
+        .log-message {
+            flex: 1;
+            color: #333;
+            word-break: break-all;
+            white-space: pre-wrap;  /* 保留 traceback 等多行消息的换行 */
+        }
+
+        .log-module {
+            color: #bbb;
+            font-size: 0.78rem;
+            white-space: nowrap;
+            padding-top: 2px;
+        }
+
+        /* 分页控件 */
+        .logs-pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .logs-pagination button {
+            padding: 8px 16px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .logs-pagination button:hover:not(:disabled) {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .logs-pagination button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .logs-pagination .page-info {
+            color: #777;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -642,12 +832,13 @@
         </div>
 
         <!-- ==================== 标签页导航 ==================== -->
-        <!-- 四个功能模块的切换标签 -->
+        <!-- 五个功能模块的切换标签（操作日志仅管理员可见） -->
         <div class="tabs">
             <button class="tab active" data-panel="search">🔍 人员查询</button>
             <button class="tab" data-panel="entry">📝 录入/更新</button>
             <button class="tab" data-panel="export">📊 导出Excel</button>
             <button class="tab" data-panel="import">📥 导入Excel</button>
+            <button class="tab" data-panel="logs" id="logsTab" style="display: none;">📋 操作日志</button>
         </div>
 
         <!-- ==================== 查询面板 ==================== -->
@@ -801,6 +992,37 @@
                 </div>
             </div>
         </div>
+
+        <!-- ==================== 操作日志面板（仅管理员可见） ==================== -->
+        <!-- 功能：按类别/日期/级别/关键词查询系统操作日志 -->
+        <div class="panel" id="logs">
+            <!-- 日志分类切换：系统日志 / 数据库改动日志 -->
+            <div class="logs-category">
+                <button class="log-cat-btn active" data-category="system" onclick="switchLogCategory('system')">🖥️ 系统日志</button>
+                <button class="log-cat-btn" data-category="db" onclick="switchLogCategory('db')">🗄️ 数据库改动</button>
+            </div>
+            <!-- 工具栏：日期、级别、关键词、刷新 -->
+            <div class="logs-toolbar">
+                <select id="logDateSelect" class="log-select" onchange="onLogFilterChange()"></select>
+                <select id="logLevelSelect" class="log-select" onchange="onLogFilterChange()">
+                    <option value="">全部级别</option>
+                    <option value="INFO">INFO</option>
+                    <option value="WARNING">WARNING</option>
+                    <option value="ERROR">ERROR</option>
+                    <option value="DEBUG">DEBUG</option>
+                </select>
+                <input type="text" id="logKeyword" class="log-search" placeholder="搜索日志内容（如：姓名、操作关键词）...">
+                <button class="btn btn-primary" onclick="loadLogs()">🔄 刷新</button>
+            </div>
+            <!-- 级别统计徽章 -->
+            <div class="logs-stats" id="logsStats"></div>
+            <!-- 日志列表 -->
+            <div class="logs-list" id="logsList">
+                <div class="empty-state">加载中...</div>
+            </div>
+            <!-- 分页控件 -->
+            <div class="logs-pagination" id="logsPagination"></div>
+        </div>
     </div>
     <!-- ==================== 主容器结束 ==================== -->
 
@@ -832,9 +1054,10 @@
                 // 显示当前用户名
                 document.getElementById('currentUsername').textContent = result.username;
                 
-                // 如果是管理员，显示管理后台按钮
+                // 如果是管理员，显示管理后台按钮和操作日志标签
                 if (result.is_admin) {
                     document.getElementById('adminBtn').style.display = 'inline-block';
+                    document.getElementById('logsTab').style.display = 'inline-block';
                 }
             } catch (error) {
                 // 请求失败则跳转到登录页面
@@ -880,6 +1103,8 @@
                     loadEmployeeList();
                 } else if (tab.dataset.panel === 'export') {
                     loadInputPreview();
+                } else if (tab.dataset.panel === 'logs') {
+                    loadLogs();
                 }
             });
         });
@@ -1506,6 +1731,167 @@
                 showMessage('importMessage', '导入失败: ' + error.message, 'error');
             }
         }
+
+        /* ***********************************************************
+         * 操作日志模块（仅管理员）
+         * 按日期/级别/关键词查询日志，支持分页与防抖搜索
+         * *********************************************************** */
+
+        let logPage = 1;           // 当前页码
+        let logCategory = 'system'; // 当前日志分类：system 系统日志 / db 数据库改动日志
+        let logKeywordTimer = null; // 关键词输入防抖计时器
+
+        /**
+         * 切换日志分类：重置筛选条件与页码后重新加载
+         * @param {string} category - system 或 db
+         */
+        function switchLogCategory(category) {
+            if (logCategory === category) return;
+            logCategory = category;
+            document.querySelectorAll('.log-cat-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.category === category);
+            });
+            // 换类别后筛选条件失效，全部重置
+            document.getElementById('logLevelSelect').value = '';
+            document.getElementById('logKeyword').value = '';
+            logPage = 1;
+            loadLogs();
+        }
+
+        /**
+         * HTML 转义，防止日志内容注入页面
+         * @param {string} str - 原始字符串
+         * @returns {string} 转义后的安全字符串
+         */
+        function escapeHtml(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        /**
+         * 加载日志列表
+         * @description 按当前筛选条件请求 /api/logs 并渲染各子区域
+         * @param {number} [page] - 目标页码，不传则保持当前页
+         * @returns {Promise<void>} 无返回值
+         */
+        async function loadLogs(page) {
+            if (page) logPage = page;
+            const list = document.getElementById('logsList');
+            list.innerHTML = '<div class="empty-state">加载中...</div>';
+
+            const params = new URLSearchParams({
+                category: logCategory,
+                date: document.getElementById('logDateSelect').value || '',
+                level: document.getElementById('logLevelSelect').value,
+                keyword: document.getElementById('logKeyword').value.trim(),
+                page: logPage,
+                page_size: 50
+            });
+
+            try {
+                const response = await fetch('/api/logs?' + params);
+                const result = await response.json();
+                if (!result.success) {
+                    list.innerHTML = `<div class="empty-state">${escapeHtml(result.message)}</div>`;
+                    document.getElementById('logsStats').innerHTML = '';
+                    document.getElementById('logsPagination').innerHTML = '';
+                    return;
+                }
+                renderLogDates(result.dates, result.date);
+                renderLogStats(result.stats, result.total);
+                renderLogList(result.logs);
+                renderLogPagination(result.page, result.pages);
+            } catch (error) {
+                list.innerHTML = '<div class="empty-state">日志加载失败，请稍后重试</div>';
+            }
+        }
+
+        /**
+         * 渲染日期下拉框（仅当日期列表变化时重建，避免打断用户操作）
+         * @param {Array<string>} dates - 可用日期列表（新→旧）
+         * @param {string} current - 当前查询的日期
+         */
+        function renderLogDates(dates, current) {
+            const sel = document.getElementById('logDateSelect');
+            const existing = Array.from(sel.options).map(o => o.value).join(',');
+            if (existing !== dates.join(',')) {
+                // 本地时区的今天，用于标注（避免 toISOString 的 UTC 时区偏差）
+                const now = new Date();
+                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                sel.innerHTML = dates.map(d =>
+                    `<option value="${d}">${d}${d === today ? '（今天）' : ''}</option>`
+                ).join('');
+            }
+            sel.value = current;
+        }
+
+        /**
+         * 渲染级别统计徽章
+         * @param {Object} stats - {级别: 数量}
+         * @param {number} total - 过滤后总条数
+         */
+        function renderLogStats(stats, total) {
+            document.getElementById('logsStats').innerHTML = `
+                <span class="log-stat-badge log-stat-total">共 ${total} 条</span>
+                <span class="log-stat-badge log-stat-info">INFO ${stats.INFO || 0}</span>
+                <span class="log-stat-badge log-stat-warning">WARNING ${stats.WARNING || 0}</span>
+                <span class="log-stat-badge log-stat-error">ERROR ${(stats.ERROR || 0) + (stats.CRITICAL || 0)}</span>`;
+        }
+
+        /**
+         * 渲染日志列表（已选定日期，时间列只显示时分秒）
+         * @param {Array<Object>} logs - 日志条目数组
+         */
+        function renderLogList(logs) {
+            const list = document.getElementById('logsList');
+            if (!logs.length) {
+                list.innerHTML = '<div class="empty-state">📭 没有符合条件的日志记录</div>';
+                return;
+            }
+            list.innerHTML = logs.map(log => {
+                const lv = (log.level || 'INFO').toLowerCase();
+                const time = (log.time || '').split(' ')[1] || log.time;
+                return `<div class="log-row log-row-level-${lv}">
+                    <span class="log-time">${escapeHtml(time)}</span>
+                    <span class="log-level-badge log-level-${lv}">${escapeHtml(log.level)}</span>
+                    <span class="log-message">${escapeHtml(log.message)}</span>
+                    <span class="log-module">${escapeHtml(log.module)}</span>
+                </div>`;
+            }).join('');
+        }
+
+        /**
+         * 渲染分页控件（单页时隐藏）
+         * @param {number} page - 当前页
+         * @param {number} pages - 总页数
+         */
+        function renderLogPagination(page, pages) {
+            const el = document.getElementById('logsPagination');
+            if (pages <= 1) {
+                el.innerHTML = '';
+                return;
+            }
+            el.innerHTML = `
+                <button onclick="loadLogs(${page - 1})" ${page <= 1 ? 'disabled' : ''}>‹ 上一页</button>
+                <span class="page-info">第 ${page} / ${pages} 页</span>
+                <button onclick="loadLogs(${page + 1})" ${page >= pages ? 'disabled' : ''}>下一页 ›</button>`;
+        }
+
+        /** 日期/级别筛选变化：回到第一页重新加载 */
+        function onLogFilterChange() {
+            logPage = 1;
+            loadLogs();
+        }
+
+        // 关键词输入：400ms 防抖后回到第一页搜索
+        document.getElementById('logKeyword').addEventListener('input', () => {
+            clearTimeout(logKeywordTimer);
+            logKeywordTimer = setTimeout(() => {
+                logPage = 1;
+                loadLogs();
+            }, 400);
+        });
     </script>
 </body>
 </html>

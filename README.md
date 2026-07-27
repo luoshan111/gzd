@@ -10,6 +10,7 @@
 - 软删除与回收站（删除可追溯、可恢复，记录删除时间与操作人）
 - 姓名拼音首字母搜索（关键词通配符已转义）
 - Excel 文件导入预览与导出
+- 操作日志（管理员）：分"系统日志"与"数据库改动日志"两类落盘到 `logs/`，页面内按类别/日期/级别/关键词查询
 - 管理员用户管理
 - 基于 Session 的登录认证
 
@@ -29,7 +30,9 @@
 - `config.py`：集中配置（数据库/文件路径/密钥，支持环境变量覆盖）
 - `db.py`：数据库访问层，含建表、旧库迁移与查询助手
 - `excel_utils.py`：Excel 导入导出共享逻辑
+- `log_utils.py`：日志模块，负责日志落盘（按天滚动）与日志查询
 - `templates/`：页面模板（主页、登录、管理后台、回收站）
+- `logs/`：运行时日志目录（system.log 系统日志 / database.log 数据库改动日志，按天滚动）
 - `gzb_admin.py`：后台管理命令行工具，用于创建/删除/重置用户
 - `gzb_find.py`：简单命令行查询工具，用于按姓名查询员工信息
 - `gzb_update.py`：Excel 导入工具，用于把 Excel 数据写入数据库
@@ -112,7 +115,7 @@ python gzb_admin.py add admin 123456 --admin
 ### 用户与权限
 
 - 普通用户登录后可查询和修改员工信息、使用回收站恢复记录
-- 管理员可管理系统用户、彻底删除回收站记录
+- 管理员可管理系统用户、彻底删除回收站记录、查看操作日志
 
 ## 目录结构
 
@@ -122,11 +125,13 @@ python gzb_admin.py add admin 123456 --admin
 ├── config.py
 ├── db.py
 ├── excel_utils.py
+├── log_utils.py
 ├── gzb_admin.py
 ├── gzb_find.py
 ├── gzb_update.py
 ├── gzb_output.py
 ├── templates/
+├── logs/
 ├── README.md
 ├── sjk.db
 ├── input.xlsx
@@ -136,13 +141,12 @@ python gzb_admin.py add admin 123456 --admin
 
 ## 开发建议
 
-以下已完成：模板目录拆分、配置环境变量化、统一错误处理与日志、Excel 逻辑抽离。
+以下已完成：模板目录拆分、配置环境变量化、统一错误处理与日志、Excel 逻辑抽离、Web 端 Excel 上传导入、操作日志落盘与页面查询。
 
 后续可选方向：
 
 - 员工列表分页与排序
-- 操作日志表与数据库自动备份
-- Web 端 Excel 上传导入与校验
+- 数据库自动备份
 
 ## 说明
 
