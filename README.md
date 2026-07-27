@@ -7,7 +7,8 @@
 该项目主要提供以下能力：
 
 - 员工信息的新增、编辑、删除与查询
-- 姓名拼音首字母搜索
+- 软删除与回收站（删除可追溯、可恢复，记录删除时间与操作人）
+- 姓名拼音首字母搜索（关键词通配符已转义）
 - Excel 文件导入预览与导出
 - 管理员用户管理
 - 基于 Session 的登录认证
@@ -24,7 +25,11 @@
 
 ## 项目文件说明
 
-- `app.py`：主应用入口，包含 Flask 路由、接口、登录鉴权、Excel 导出逻辑
+- `app.py`：主应用入口，包含 Flask 路由、接口、登录鉴权
+- `config.py`：集中配置（数据库/文件路径/密钥，支持环境变量覆盖）
+- `db.py`：数据库访问层，含建表、旧库迁移与查询助手
+- `excel_utils.py`：Excel 导入导出共享逻辑
+- `templates/`：页面模板（主页、登录、管理后台、回收站）
 - `gzb_admin.py`：后台管理命令行工具，用于创建/删除/重置用户
 - `gzb_find.py`：简单命令行查询工具，用于按姓名查询员工信息
 - `gzb_update.py`：Excel 导入工具，用于把 Excel 数据写入数据库
@@ -48,11 +53,15 @@ pip install flask pandas openpyxl pypinyin Werkzeug
 
 ### 3. 启动项目
 
-推荐方式：
+最简单的方式：直接双击 `启动项目.bat`（脚本自动定位项目目录、检查 Python 与依赖，项目文件夹移动后无需改任何路径）。关闭服务则双击 `关闭项目.bat`。
+
+手动方式：
 
 ```bash
-python -c "from app import app; app.run(port=5001, debug=True, host='0.0.0.0')"
+python app.py
 ```
+
+端口、调试模式等可通过环境变量覆盖，详见 `config.py` 顶部注释（如 `GZD_PORT`、`GZD_DEBUG`）。
 
 ### 4. 访问地址
 
@@ -80,8 +89,20 @@ python gzb_admin.py add admin 123456 --admin
 
 - 新增员工记录
 - 更新员工记录
-- 删除员工记录
+- 删除员工记录（软删除，进回收站）
 - 按姓名或拼音首字母查询
+
+### 回收站
+
+- 查看已删除记录及删除时间、删除人
+- 恢复记录到在职列表
+- 管理员可彻底删除（不可恢复）
+
+### Excel 导入
+
+- 网页直接上传 `.xlsx` 文件，自动识别中英文表头
+- 先生成校验报告（新增/更新/恢复/错误逐行标注），确认无误后再写入
+- 也可用 `gzb_update.py` 命令行导入
 
 ### Excel 导出
 
@@ -90,18 +111,22 @@ python gzb_admin.py add admin 123456 --admin
 
 ### 用户与权限
 
-- 普通用户登录后可查询和修改员工信息
-- 管理员可管理系统用户
+- 普通用户登录后可查询和修改员工信息、使用回收站恢复记录
+- 管理员可管理系统用户、彻底删除回收站记录
 
 ## 目录结构
 
 ```text
 .
 ├── app.py
+├── config.py
+├── db.py
+├── excel_utils.py
 ├── gzb_admin.py
 ├── gzb_find.py
 ├── gzb_update.py
 ├── gzb_output.py
+├── templates/
 ├── README.md
 ├── sjk.db
 ├── input.xlsx
@@ -111,10 +136,13 @@ python gzb_admin.py add admin 123456 --admin
 
 ## 开发建议
 
-- 建议后续把前端模板和静态资源拆分到独立目录中
-- 建议把 `app.secret_key` 与数据库路径改为环境变量配置
-- 建议为 API 增加统一错误处理与日志记录
-- 建议将 Excel 导出逻辑抽成独立服务/工具函数
+以下已完成：模板目录拆分、配置环境变量化、统一错误处理与日志、Excel 逻辑抽离。
+
+后续可选方向：
+
+- 员工列表分页与排序
+- 操作日志表与数据库自动备份
+- Web 端 Excel 上传导入与校验
 
 ## 说明
 
