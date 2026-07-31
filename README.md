@@ -12,6 +12,7 @@
 - 员工列表与回收站分页展示（默认每页 20 条，最多 100 条）
 - Excel 文件导入预览与导出
 - 操作日志（管理员）：分"系统日志"与"数据库改动日志"两类落盘到 `logs/`，页面内按类别/日期/级别/关键词查询
+- SQLite 数据库手动备份：管理员在后台点击按钮创建，默认保留最近 10 个文件
 - 管理员用户管理
 - 基于 Session 的登录认证
 
@@ -32,6 +33,8 @@
 - `db.py`：数据库访问层，含建表、旧库迁移与查询助手
 - `excel_utils.py`：Excel 导入导出共享逻辑
 - `log_utils.py`：日志模块，负责日志落盘（按天滚动）与日志查询
+- `backup_utils.py`：SQLite 一致性备份、定时备份与旧备份清理
+- `gzb_backup.py`：手动创建数据库备份的命令行工具
 - `templates/`：页面模板（主页、登录、管理后台、回收站）
 - `logs/`：运行时日志目录（system.log 系统日志 / database.log 数据库改动日志，按天滚动）
 - `gzb_admin.py`：后台管理命令行工具，用于创建/删除/重置用户
@@ -48,7 +51,7 @@
 ### 1. 安装依赖
 
 ```bash
-pip install flask pandas openpyxl pypinyin Werkzeug
+pip install -r requirements.txt
 ```
 
 ### 2. 初始化数据库
@@ -65,9 +68,24 @@ pip install flask pandas openpyxl pypinyin Werkzeug
 python app.py
 ```
 
-端口、调试模式等可通过环境变量覆盖，详见 `config.py` 顶部注释（如 `GZD_PORT`、`GZD_DEBUG`）。
+端口、调试模式和备份目录等可通过环境变量覆盖，详见 `config.py` 顶部注释（如 `GZD_PORT`、`GZD_DEBUG`、`GZD_BACKUP_DIR`）。
 
-### 4. 访问地址
+### 4. 数据备份
+
+系统默认不会在启动时自动备份。管理员可在“管理后台”中点击“立即备份”，成功或失败都会弹窗提示；点击“查看备份”可以进入备份子页面查看和下载历史备份。默认备份到 `backups/`，保留最近 10 个备份文件。
+
+也可以手动执行：
+
+```bash
+python gzb_backup.py
+```
+
+可通过以下环境变量调整：
+
+- `GZD_BACKUP_DIR`：指定备份目录
+- `GZD_BACKUP_RETENTION`：保留备份文件数量，默认 10
+
+### 5. 访问地址
 
 打开浏览器访问：
 
@@ -126,14 +144,18 @@ python gzb_admin.py add admin 123456 --admin
 .
 ├── app.py
 ├── config.py
+├── requirements.txt
 ├── db.py
 ├── excel_utils.py
 ├── log_utils.py
+├── backup_utils.py
+├── gzb_backup.py
 ├── gzb_admin.py
 ├── gzb_find.py
 ├── gzb_update.py
 ├── gzb_output.py
 ├── templates/
+│   └── components/backup_panel.html
 ├── logs/
 ├── README.md
 ├── sjk.db
@@ -149,7 +171,7 @@ python gzb_admin.py add admin 123456 --admin
 后续可选方向：
 
 - 员工列表排序
-- 数据库自动备份
+- 备份恢复演练与异地备份
 
 ## 说明
 

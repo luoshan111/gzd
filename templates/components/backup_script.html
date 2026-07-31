@@ -1,0 +1,79 @@
+<script>
+    /**
+     * 备份组件的弹窗提示。
+     * 使用固定位置的 toast，避免页面布局被成功/失败消息撑开。
+     */
+    let backupToastTimer;
+
+    function showBackupToast(message, type) {
+        const toast = document.getElementById('backupToast');
+        if (!toast) return;
+        window.clearTimeout(backupToastTimer);
+        toast.textContent = message;
+        toast.className = `backup-toast ${type} visible`;
+        backupToastTimer = window.setTimeout(() => {
+            toast.className = 'backup-toast';
+        }, 3500);
+    }
+
+    /**
+     * 手动创建数据库备份。
+     * 按钮请求期间禁用，防止用户重复点击生成多个备份。
+     */
+    async function createBackup() {
+        const buttons = document.querySelectorAll('[data-backup-button]');
+        buttons.forEach(button => {
+            button.disabled = true;
+            button.dataset.originalText = button.textContent;
+            button.textContent = '备份中...';
+        });
+
+        try {
+            const response = await fetch('/api/admin/backup', {method: 'POST'});
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || '数据库备份失败');
+            }
+            showBackupToast(`备份成功：${result.filename}`, 'success');
+            if (typeof loadBackups === 'function') loadBackups();
+        } catch (error) {
+            showBackupToast(error.message || '数据库备份失败，请稍后重试', 'error');
+        } finally {
+            buttons.forEach(button => {
+                button.disabled = false;
+                button.textContent = button.dataset.originalText || '立即备份';
+            });
+        }
+    }
+
+    /** 加载备份查看页中的历史备份列表。 */
+    async function loadBackups() {
+        const container = document.getElementById('backupList');
+        if (!container) return;
+        container.innerHTML = '<div class="backup-empty">正在加载备份列表...</div>';
+        try {
+            const response = await fetch('/api/admin/backups');
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || '备份列表加载失败');
+            }
+            if (result.data.length === 0) {
+                container.innerHTML = '<div class="backup-empty">暂无备份文件，请先点击“立即备份”。</div>';
+                return;
+            }
+            container.innerHTML = result.data.map(item => `
+                <div class="backup-list-item">
+                    <div class="backup-file-info">
+                        <strong>${item.filename}</strong>
+                        <span>${item.created_at} · ${item.size_text}</span>
+                    </div>
+                    <a class="btn btn-primary btn-sm" href="/api/admin/backup/${encodeURIComponent(item.filename)}">下载</a>
+                </div>
+            `).join('');
+        } catch (error) {
+            container.innerHTML = `<div class="backup-empty backup-error">${error.message || '备份列表加载失败'}</div>`;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadBackups);
+</script>

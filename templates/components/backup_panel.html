@@ -1,0 +1,15 @@
+<!-- 数据库备份操作组件：管理员可手动创建备份或进入查看页面。 -->
+<section class="backup-panel" aria-labelledby="backupPanelTitle">
+    <div class="backup-panel-copy">
+        <span class="backup-panel-icon">💾</span>
+        <div>
+            <h2 id="backupPanelTitle">数据库备份</h2>
+            <p>备份不会在启动时自动执行，请在需要时手动创建。系统默认保留最近 10 个备份文件。</p>
+        </div>
+    </div>
+    <div class="backup-panel-actions">
+        <button type="button" class="btn btn-success" data-backup-button onclick="createBackup()">立即备份</button>
+        <a href="/backup" class="btn btn-primary">查看备份</a>
+    </div>
+    <div id="backupToast" class="backup-toast" role="status" aria-live="polite"></div>
+</section>
