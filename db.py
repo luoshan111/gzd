@@ -149,3 +149,31 @@ def escape_like(keyword: str) -> str:
     使关键词按字面匹配；SQL 中需配合 ESCAPE '\\' 使用。
     """
     return keyword.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
+
+# ---------------------------------------------------------------------------
+# 分页查询
+# ---------------------------------------------------------------------------
+
+def query_paginated(sql: str, params: tuple = (), page: int = 1, page_size: int = 20) -> dict:
+    """执行分页查询，返回数据、总数和分页信息。"""
+    count_sql = f"SELECT COUNT(*) AS total FROM ({sql}) AS paged_query"
+    with db_session() as conn:
+        total = conn.execute(count_sql, params).fetchone()['total']
+        offset = (page - 1) * page_size
+        paginated_sql = f"{sql} LIMIT ? OFFSET ?"
+        rows = [
+            dict(row)
+            for row in conn.execute(
+                paginated_sql, params + (page_size, offset)
+            ).fetchall()
+        ]
+
+    pages = max(1, (total + page_size - 1) // page_size)
+    return {
+        'data': rows,
+        'total': total,
+        'page': page,
+        'page_size': page_size,
+        'pages': pages,
+    }
