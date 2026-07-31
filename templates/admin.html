@@ -6,6 +6,7 @@
     2. 查看所有用户列表
     3. 重置用户密码
     4. 删除用户
+    5. 手动创建、查看和下载数据库备份
     
     访问权限：仅限管理员
     
@@ -325,6 +326,80 @@
             flex: 1;
         }
 
+        /* ==================== 数据库备份组件 ==================== */
+        .backup-panel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            margin-top: 30px;
+            padding: 22px 25px;
+            background: rgba(50, 50, 60, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+        }
+
+        .backup-panel-copy {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .backup-panel-icon {
+            font-size: 2rem;
+        }
+
+        .backup-panel h2 {
+            color: #e0e0e0;
+            font-size: 1.1rem;
+            margin-bottom: 6px;
+        }
+
+        .backup-panel p {
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .backup-panel-actions {
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .backup-panel button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .backup-toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 2000;
+            max-width: min(420px, calc(100vw - 48px));
+            padding: 14px 18px;
+            border-radius: 10px;
+            color: #fff;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+            opacity: 0;
+            transform: translateY(-12px);
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .backup-toast.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .backup-toast.success {
+            background: #247a45;
+        }
+
+        .backup-toast.error {
+            background: #a73543;
+        }
+
         /* ==================== 响应式设计 ==================== */
         @media (max-width: 600px) {
             .form-row {
@@ -409,6 +484,9 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- 数据库备份组件：放在管理员用户管理区域之后，便于管理员集中维护系统数据。 -->
+            {% include 'components/backup_panel.html' %}
         </div>
     </div>
 
@@ -428,6 +506,8 @@
             </div>
         </div>
     </div>
+
+    {% include 'components/backup_script.html' %}
 
     <!-- JavaScript 逻辑 -->
     <script>

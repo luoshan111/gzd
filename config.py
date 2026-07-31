@@ -11,6 +11,8 @@
     GZD_PORT               服务端口，默认 5001
     GZD_DEBUG              是否开启调试模式，默认开（设为 0 关闭）
     GZD_LOG_DIR            日志文件目录（按天滚动，保留 30 天）
+    GZD_BACKUP_DIR        数据库备份目录，默认 backups/
+    GZD_BACKUP_RETENTION  保留备份文件数量，默认 10 个
 """
 
 import os
@@ -45,3 +47,7 @@ DEBUG = os.environ.get('GZD_DEBUG', '1') != '0'
 # 日志目录与当前日志文件（按天滚动：app.log 为当天，历史为 app.log.YYYY-MM-DD）
 LOG_DIR = os.environ.get('GZD_LOG_DIR', os.path.join(BASE_DIR, 'logs'))
 LOG_FILE = os.path.join(LOG_DIR, 'app.log')
+
+# 数据库备份参数：备份只由管理员在页面或命令行手动触发
+BACKUP_DIR = _env_path('GZD_BACKUP_DIR', 'backups')
+BACKUP_RETENTION = max(1, int(os.environ.get('GZD_BACKUP_RETENTION', '10')))

@@ -6,3 +6,6 @@ __pycache__/
 
 # 运行时日志文件
 logs/
+
+# 数据库运行时备份
+backups/

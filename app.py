@@ -23,6 +23,7 @@ from excel_utils import (read_names, export_employees, IMPORT_COLUMNS,
                          read_employee_excel, classify_import_rows,
                          summarize_import_rows, import_employee_rows)
 from log_utils import setup_logging, read_logs, sys_log, db_log
+from backup_utils import create_backup, get_backup_path, list_backups
 
 # 对外返回的员工字段（不含 deleted/deleted_at 等内部审计字段）
 EMPLOYEE_COLUMNS = 'real_name, id_number, bank_account, bank_address, phone, sx'
@@ -213,6 +214,13 @@ def admin_page():
 def recycle_bin_page():
     """回收站页面：查看、恢复已删除的员工记录。"""
     return render_template('recycle_bin.html')
+
+
+@app.route('/backup')
+@admin_required
+def backup_page():
+    """管理员数据库备份页面：手动创建、查看和下载备份。"""
+    return render_template('backup.html')
 
 
 # ==================== 员工信息 API ====================
@@ -559,6 +567,37 @@ def get_logs():
 
 
 # ==================== 管理员功能 API ====================
+
+@app.route('/api/admin/backup', methods=['POST'])
+@admin_required
+def create_backup_api():
+    """手动创建数据库备份，并返回最新备份列表。"""
+    try:
+        backup_path = create_backup()
+    except Exception:
+        return api_err('数据库备份失败，请查看系统日志', status=500)
+
+    db_log.info('管理员 %s 创建数据库备份: %s', session.get('username'), backup_path.name)
+    return api_ok('数据库备份成功', filename=backup_path.name, backups=list_backups())
+
+
+@app.route('/api/admin/backups', methods=['GET'])
+@admin_required
+def get_backups():
+    """获取数据库备份列表，仅返回文件名、大小和创建时间。"""
+    return api_ok(data=list_backups())
+
+
+@app.route('/api/admin/backup/<path:filename>', methods=['GET'])
+@admin_required
+def download_backup(filename):
+    """下载指定备份，文件名经过白名单校验以防止路径穿越。"""
+    backup_path = get_backup_path(filename)
+    if not backup_path:
+        return api_err('备份文件不存在或不允许下载', status=404)
+    sys_log.info('管理员 %s 下载数据库备份: %s', session.get('username'), filename)
+    return send_file(backup_path, as_attachment=True, download_name=backup_path.name)
+
 
 @app.route('/api/admin/users', methods=['GET'])
 @admin_required
