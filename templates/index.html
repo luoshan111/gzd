@@ -389,6 +389,41 @@
             border-radius: 10px;
         }
 
+
+        /* 分页控件样式 */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px 0;
+            font-size: 14px;
+            color: #666;
+        }
+        .pagination button {
+            padding: 6px 14px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            background: #fff;
+            color: #333;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .pagination button:hover:not(:disabled) {
+            background: #007bff;
+            color: #fff;
+            border-color: #007bff;
+        }
+        .pagination button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .pagination .page-info {
+            margin: 0 8px;
+            color: #888;
+        }
+
         .employee-item {
             display: flex;
             justify-content: space-between;
@@ -913,6 +948,7 @@
                 <div class="employee-list" id="employeeList">
                     <div class="empty-state">加载中...</div>
                 </div>
+                <div class="pagination" id="employeePagination"></div>
             </div>
         </div>
 
@@ -1223,12 +1259,17 @@
          *              每个员工项包含编辑和删除按钮
          * @returns {Promise<void>} 无返回值
          */
-        async function loadEmployeeList() {
+        let empCurrentPage = 1;
+        const empPageSize = 20;
+
+        async function loadEmployeeList(page) {
+            if (page !== undefined) empCurrentPage = page;
             try {
-                const response = await fetch('/api/employees');
+                const response = await fetch(`/api/employees?page=${empCurrentPage}&page_size=${empPageSize}`);
                 const result = await response.json();
 
                 const container = document.getElementById('employeeList');
+                const paginationEl = document.getElementById('employeePagination');
 
                 if (result.success && result.data.length > 0) {
                     let html = '';
@@ -1247,12 +1288,28 @@
                         `;
                     });
                     container.innerHTML = html;
+                    renderPagination(paginationEl, result.page, result.pages, result.total, loadEmployeeList);
                 } else {
                     container.innerHTML = '<div class="empty-state">暂无员工数据</div>';
+                    paginationEl.innerHTML = '';
                 }
             } catch (error) {
                 document.getElementById('employeeList').innerHTML = '<div class="empty-state">加载失败</div>';
             }
+        }
+
+        function renderPagination(el, current, total, totalCount, callback) {
+            if (total <= 1) { el.innerHTML = ''; return; }
+            let html = '<button ' + (current <= 1 ? 'disabled' : '') + ' data-page="' + (current - 1) + '">上一页</button>';
+            html += '<span class="page-info">第 ' + current + ' / ' + total + ' 页，共 ' + totalCount + ' 条</span>';
+            html += '<button ' + (current >= total ? 'disabled' : '') + ' data-page="' + (current + 1) + '">下一页</button>';
+            el.innerHTML = html;
+            el.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const p = parseInt(this.dataset.page);
+                    if (!isNaN(p)) callback(p);
+                });
+            });
         }
 
         /**

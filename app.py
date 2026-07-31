@@ -18,7 +18,7 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import config
-from db import init_db, query_all, query_one, execute, get_pinyin_sx, escape_like
+from db import init_db, query_all, query_one, execute, query_paginated, get_pinyin_sx, escape_like
 from excel_utils import (read_names, export_employees, IMPORT_COLUMNS,
                          read_employee_excel, classify_import_rows,
                          summarize_import_rows, import_employee_rows)
@@ -244,10 +244,20 @@ def search():
 @app.route('/api/employees', methods=['GET'])
 @login_required
 def get_employees():
-    """获取全部在职员工列表（按姓名排序，不含已软删除记录）。"""
-    return api_ok(data=query_all(
-        f"SELECT {EMPLOYEE_COLUMNS} FROM employees WHERE deleted = 0 ORDER BY real_name"
-    ))
+    """获取在职员工列表（分页，按姓名排序）。"""
+    try:
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 20))
+    except ValueError:
+        return api_err('分页参数格式错误')
+    page = max(1, page)
+    page_size = min(max(1, page_size), 100)
+    
+    result = query_paginated(
+        f"SELECT {EMPLOYEE_COLUMNS} FROM employees WHERE deleted = 0 ORDER BY real_name",
+        page=page, page_size=page_size
+    )
+    return api_ok(**result)
 
 
 @app.route('/api/employee', methods=['POST', 'PUT'])
@@ -327,12 +337,20 @@ def delete_employee(name):
 @app.route('/api/recycle-bin', methods=['GET'])
 @login_required
 def get_recycle_bin():
-    """获取回收站列表：已软删除的员工，按删除时间倒序。"""
-    rows = query_all(
-        f"SELECT {RECYCLE_COLUMNS} FROM employees "
-        "WHERE deleted = 1 ORDER BY deleted_at DESC"
+    """获取回收站列表（分页）：已软删除的员工，按删除时间倒序。"""
+    try:
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 20))
+    except ValueError:
+        return api_err('分页参数格式错误')
+    page = max(1, page)
+    page_size = min(max(1, page_size), 100)
+    
+    result = query_paginated(
+        f"SELECT {RECYCLE_COLUMNS} FROM employees WHERE deleted = 1 ORDER BY deleted_at DESC",
+        page=page, page_size=page_size
     )
-    return api_ok(data=rows)
+    return api_ok(**result)
 
 
 @app.route('/api/employee/<name>/restore', methods=['POST'])
