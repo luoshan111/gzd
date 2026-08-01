@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据库备份 - 员工信息管理系统</title>
+    <style>
+        /* 备份页面沿用管理后台的深色视觉和按钮风格。 */
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding: 20px;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #e0e0e0;
+        }
+        .backup-page {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(30, 30, 40, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+        .backup-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 25px 30px;
+            background: linear-gradient(135deg, #2d2d44 0%, #1a1a2e 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .backup-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .backup-header-actions,
+        .backup-panel-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .backup-content { padding: 30px; }
+        .backup-panel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            padding: 22px 25px;
+            background: rgba(50, 50, 60, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+        }
+        .backup-panel-copy {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .backup-panel-icon { font-size: 2rem; }
+        .backup-panel h2 { margin: 0 0 6px; font-size: 1.1rem; }
+        .backup-panel p { margin: 0; color: #aaa; font-size: 0.9rem; }
+        .backup-panel button:disabled { opacity: 0.6; cursor: wait; }
+        .backup-list-section { margin-top: 30px; }
+        .backup-list-section h2 {
+            margin: 0 0 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 1.2rem;
+        }
+        .backup-list {
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+        }
+        .backup-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 16px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .backup-list-item:last-child { border-bottom: 0; }
+        .backup-file-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 0;
+        }
+        .backup-file-info strong {
+            overflow: hidden;
+            color: #e0e0e0;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .backup-file-info span { color: #999; font-size: 0.88rem; }
+        .backup-empty {
+            padding: 40px 20px;
+            color: #999;
+            text-align: center;
+        }
+        .backup-error { color: #ff6b6b; }
+        .backup-toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 2000;
+            max-width: min(420px, calc(100vw - 48px));
+            padding: 14px 18px;
+            border-radius: 10px;
+            color: #fff;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+            opacity: 0;
+            transform: translateY(-12px);
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .backup-toast.visible { opacity: 1; transform: translateY(0); }
+        .backup-toast.success { background: #247a45; }
+        .backup-toast.error { background: #a73543; }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-primary {
+            background: linear-gradient(135deg, #4a4a6a 0%, #3a3a5a 100%);
+            color: #e0e0e0;
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #2d5a3d 0%, #1e4a2e 100%);
+            color: #e0e0e0;
+        }
+        .btn-sm { padding: 8px 14px; font-size: 0.85rem; }
+        @media (max-width: 650px) {
+            .backup-header,
+            .backup-panel,
+            .backup-list-item { align-items: stretch; flex-direction: column; }
+            .backup-header-actions,
+            .backup-panel-actions { flex-wrap: wrap; }
+            .backup-header-actions .btn,
+            .backup-panel-actions .btn { flex: 1; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <main class="backup-page">
+        <header class="backup-header">
+            <h1>💾 数据库备份</h1>
+            <div class="backup-header-actions">
+                <a href="/admin" class="btn btn-primary">返回管理后台</a>
+                <a href="/" class="btn btn-primary">返回主页</a>
+            </div>
+        </header>
+        <div class="backup-content">
+            {% include 'components/backup_panel.html' %}
+            <section class="backup-list-section" aria-labelledby="backupListTitle">
+                <h2 id="backupListTitle">历史备份</h2>
+                <div class="backup-list" id="backupList">
+                    <div class="backup-empty">正在加载备份列表...</div>
+                </div>
+            </section>
+        </div>
+    </main>
+    {% include 'components/backup_script.html' %}
+</body>
+</html>
