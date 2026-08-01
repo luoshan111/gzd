@@ -9,3 +9,6 @@ logs/
 
 # 数据库运行时备份
 backups/
+
+# Visual Studio 本地缓存和用户状态
+.vs/

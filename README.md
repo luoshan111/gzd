@@ -28,12 +28,18 @@
 
 ## 项目文件说明
 
-- `app.py`：主应用入口，包含 Flask 路由、接口、登录鉴权
+- `app.py`：Flask 应用入口，负责初始化、全局错误处理和路由模块注册
+- `app_common.py`：统一 API 响应格式、鉴权装饰器和公共字段工具
+- `auth_routes.py`：登录、登出和登录状态接口
+- `page_routes.py`：主页、后台、回收站和备份页面路由
+- `employee_routes.py`：员工信息与回收站 API
+- `import_export_routes.py`：Excel 导入、导出和下载 API
+- `admin_routes.py`：日志、备份和管理员用户 API
 - `config.py`：集中配置（数据库/文件路径/密钥，支持环境变量覆盖）
 - `db.py`：数据库访问层，含建表、旧库迁移与查询助手
 - `excel_utils.py`：Excel 导入导出共享逻辑
 - `log_utils.py`：日志模块，负责日志落盘（按天滚动）与日志查询
-- `backup_utils.py`：SQLite 一致性备份、定时备份与旧备份清理
+- `backup_utils.py`：SQLite 一致性备份、完整性校验与旧备份清理
 - `gzb_backup.py`：手动创建数据库备份的命令行工具
 - `templates/`：页面模板（主页、登录、管理后台、回收站）
 - `logs/`：运行时日志目录（system.log 系统日志 / database.log 数据库改动日志，按天滚动）
