@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 chcp 65001 >nul
 title 员工信息管理系统
 
@@ -9,7 +9,7 @@ REM  直接双击本文件即可启动，无需修改任何路径。
 REM ============================================================
 
 REM 切换到本脚本所在目录（%~dp0 = 当前 bat 文件所在的目录）
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 REM 查找可用的 Python：优先 PATH 中的 python，其次 Windows py 启动器
 set "PYTHON="

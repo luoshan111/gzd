@@ -47,10 +47,10 @@
 - `gzb_find.py`：简单命令行查询工具，用于按姓名查询员工信息
 - `gzb_update.py`：Excel 导入工具，用于把 Excel 数据写入数据库
 - `gzb_output.py`：示例导出脚本，用于生成员工报表
-- `sjk.db`：SQLite 数据库文件
-- `input.xlsx`：输入 Excel 文件
-- `output.xlsx`：导出结果文件
-- `shuchu.xlsx`：手动导出结果文件
+- `data/sjk.db`：SQLite 数据库文件
+- `data/input.xlsx`：输入 Excel 文件
+- `data/output.xlsx`：导出结果文件
+- `data/shuchu.xlsx`：手动导出结果文件
 
 ## 快速开始
 
@@ -66,7 +66,7 @@ pip install -r requirements.txt
 
 ### 3. 启动项目
 
-最简单的方式：直接双击 `启动项目.bat`（脚本自动定位项目目录、检查 Python 与依赖，项目文件夹移动后无需改任何路径）。关闭服务则双击 `关闭项目.bat`。
+最简单的方式：直接双击 `scripts/启动项目.bat`（脚本自动定位项目目录、检查 Python 与依赖，项目文件夹移动后无需改任何路径）。关闭服务则双击 `scripts/关闭项目.bat`。
 
 手动方式：
 
@@ -111,6 +111,21 @@ python gzb_admin.py add admin 123456 --admin
 
 然后使用上述用户名密码登录系统。
 
+## 界面设计
+
+系统采用统一的现代浅色设计风格：
+
+- 背景色 #f1f5f9，白色圆角卡片布局
+- 主色调 #4f46e5（indigo），贯穿所有页面
+- 顶部导航栏，标签页切换功能模块
+- Toast 通知弹窗（右下角，3 秒自动消失）
+- 响应式布局，适配移动端
+
+### 员工列表排序
+
+员工列表和搜索结果默认按姓名（
+eal_name）升序排列。
+
 ## 主要功能说明
 
 ### 员工信息管理
@@ -148,26 +163,45 @@ python gzb_admin.py add admin 123456 --admin
 
 ```text
 .
-├── app.py
-├── config.py
+├── app.py                  # Flask 应用入口
+├── app_common.py           # 统一响应、鉴权装饰器
+├── config.py               # 集中配置
+├── db.py                   # 数据库访问层
+├── admin_routes.py         # 管理员 API
+├── auth_routes.py          # 登录登出 API
+├── employee_routes.py      # 员工与回收站 API
+├── import_export_routes.py # Excel 导入导出 API
+├── page_routes.py          # 页面路由
+├── excel_utils.py          # Excel 工具
+├── log_utils.py            # 日志模块
+├── backup_utils.py         # 备份工具
+├── gzb_admin.py            # CLI 用户管理
+├── gzb_backup.py           # CLI 备份
+├── gzb_find.py             # CLI 查询
+├── gzb_update.py           # CLI 导入
+├── gzb_output.py           # CLI 导出
 ├── requirements.txt
-├── db.py
-├── excel_utils.py
-├── log_utils.py
-├── backup_utils.py
-├── gzb_backup.py
-├── gzb_admin.py
-├── gzb_find.py
-├── gzb_update.py
-├── gzb_output.py
-├── templates/
-│   └── components/backup_panel.html
-├── logs/
-├── README.md
-├── sjk.db
-├── input.xlsx
-├── output.xlsx
-└── shuchu.xlsx
+├── data/                   # 数据文件
+│   ├── sjk.db
+│   ├── input.xlsx
+│   ├── output.xlsx
+│   └── shuchu.xlsx
+├── templates/              # 页面模板
+│   ├── index.html
+│   ├── login.html
+│   ├── admin.html
+│   ├── backup.html
+│   ├── recycle_bin.html
+│   └── components/
+├── docs/                   # 项目文档
+│   ├── README.md
+│   ├── 使用文档.md
+│   └── 开发文档.md
+├── scripts/                # 启动/关闭脚本
+│   ├── 启动项目.bat
+│   └── 关闭项目.bat
+├── logs/                   # 运行时日志
+└── backups/                # 数据库备份
 ```
 
 ## 开发建议

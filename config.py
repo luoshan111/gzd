@@ -1,4 +1,4 @@
-"""
+﻿"""
 集中配置模块
 所有路径/密钥均可通过环境变量覆盖，默认值保持与原项目一致，开箱即用。
 
@@ -29,10 +29,10 @@ def _env_path(env_name: str, default_filename: str) -> str:
 SECRET_KEY = os.environ.get('GZD_SECRET_KEY', 'gongzidan_secret_key_2026')
 
 # 数据库与 Excel 文件路径
-DB_PATH = _env_path('GZD_DB_PATH', 'sjk.db')
-INPUT_XLSX = _env_path('GZD_INPUT_XLSX', 'input.xlsx')
-OUTPUT_XLSX = _env_path('GZD_OUTPUT_XLSX', 'output.xlsx')
-MANUAL_OUTPUT_XLSX = _env_path('GZD_MANUAL_OUTPUT_XLSX', 'shuchu.xlsx')
+DB_PATH = _env_path('GZD_DB_PATH', 'data/sjk.db')
+INPUT_XLSX = _env_path('GZD_INPUT_XLSX', 'data/input.xlsx')
+OUTPUT_XLSX = _env_path('GZD_OUTPUT_XLSX', 'data/output.xlsx')
+MANUAL_OUTPUT_XLSX = _env_path('GZD_MANUAL_OUTPUT_XLSX', 'data/shuchu.xlsx')
 
 # 允许通过 /api/download/<filename> 下载的文件（按文件名白名单，防止路径穿越攻击）
 ALLOWED_DOWNLOADS = {

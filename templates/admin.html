@@ -1,745 +1,210 @@
-<!--
-    管理员后台页面 - 员工信息管理系统
-    
-    功能：
-    1. 添加新用户（普通用户/管理员）
-    2. 查看所有用户列表
-    3. 重置用户密码
-    4. 删除用户
-    5. 手动创建、查看和下载数据库备份
-    
-    访问权限：仅限管理员
-    
-    作者：系统管理员
--->
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理后台 - 员工信息管理系统</title>
-    
-    <!-- 页面样式 -->
     <style>
-        /* ==================== 基础样式重置 ==================== */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        /* ==================== 页面背景 ==================== */
-        body {
-            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            /* 黑灰色渐变背景 */
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        /* ==================== 主容器 ==================== */
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: rgba(30, 30, 40, 0.95);
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        /* ==================== 页面头部 ==================== */
-        .header {
-            background: linear-gradient(135deg, #2d2d44 0%, #1a1a2e 100%);
-            padding: 25px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .header h1 {
-            color: #e0e0e0;
-            font-size: 1.5rem;
-        }
-
-        /* 头部按钮组 */
-        .header-actions {
-            display: flex;
-            gap: 12px;
-        }
-
-        /* ==================== 按钮样式 ==================== */
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-        }
-
-        /* 主要按钮 - 灰紫色 */
-        .btn-primary {
-            background: linear-gradient(135deg, #4a4a6a 0%, #3a3a5a 100%);
-            color: #e0e0e0;
-        }
-
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #5a5a7a 0%, #4a4a6a 100%);
-            transform: translateY(-2px);
-        }
-
-        /* 成功按钮 - 绿色 */
-        .btn-success {
-            background: linear-gradient(135deg, #2d5a3d 0%, #1e4a2e 100%);
-            color: #e0e0e0;
-        }
-
-        .btn-success:hover {
-            background: linear-gradient(135deg, #3d6a4d 0%, #2e5a3e 100%);
-        }
-
-        /* 危险按钮 - 红色 */
-        .btn-danger {
-            background: linear-gradient(135deg, #5a2d2d 0%, #4a1e1e 100%);
-            color: #e0e0e0;
-        }
-
-        .btn-danger:hover {
-            background: linear-gradient(135deg, #6a3d3d 0%, #5a2e2e 100%);
-        }
-
-        /* 小尺寸按钮 */
-        .btn-sm {
-            padding: 8px 14px;
-            font-size: 0.85rem;
-        }
-
-        /* ==================== 内容区域 ==================== */
-        .content {
-            padding: 30px;
-        }
-
-        /* 区域标题 */
-        .section-title {
-            color: #e0e0e0;
-            font-size: 1.2rem;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        /* ==================== 添加用户表单 ==================== */
-        .add-user-form {
-            background: rgba(50, 50, 60, 0.4);
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 30px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        /* 表单行 - 横向布局 */
-        .form-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
-
-        /* 表单组 */
-        .form-group {
-            flex: 1;
-            min-width: 200px;
-        }
-
-        .form-group label {
-            display: block;
-            color: #aaa;
-            font-size: 0.9rem;
-            margin-bottom: 8px;
-        }
-
-        .form-group input, .form-group select {
-            width: 100%;
-            padding: 12px 14px;
-            background: rgba(50, 50, 60, 0.6);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            color: #e0e0e0;
-            font-size: 1rem;
-        }
-
-        .form-group input:focus, .form-group select:focus {
-            outline: none;
-            border-color: #5a5a7a;
-        }
-
-        .form-group select {
-            cursor: pointer;
-        }
-
-        .form-group select option {
-            background: #2d2d44;
-        }
-
-        /* 复选框组 */
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding-top: 28px;  /* 与输入框对齐 */
-        }
-
-        .checkbox-group input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
-
-        .checkbox-group label {
-            margin-bottom: 0;
-            cursor: pointer;
-        }
-
-        /* ==================== 用户列表表格 ==================== */
-        .table-container {
-            overflow-x: auto;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            background: rgba(45, 45, 68, 0.8);
-            color: #e0e0e0;
-            padding: 14px 16px;
-            text-align: left;
-            font-weight: 600;
-        }
-
-        td {
-            padding: 14px 16px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            color: #ccc;
-        }
-
-        tr:hover {
-            background: rgba(60, 60, 80, 0.3);
-        }
-
-        /* ==================== 角色标签 ==================== */
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        /* 管理员标签 - 金色 */
-        .badge-admin {
-            background: rgba(255, 193, 7, 0.2);
-            color: #ffc107;
-        }
-
-        /* 普通用户标签 - 灰色 */
-        .badge-user {
-            background: rgba(108, 117, 125, 0.3);
-            color: #aaa;
-        }
-
-        /* 操作按钮组 */
-        .actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        /* ==================== 消息提示 ==================== */
-        .message {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .message.success {
-            background: rgba(40, 167, 69, 0.2);
-            color: #51cf66;
-            border: 1px solid rgba(40, 167, 69, 0.3);
-            display: block;
-        }
-
-        .message.error {
-            background: rgba(220, 53, 69, 0.2);
-            color: #ff6b6b;
-            border: 1px solid rgba(220, 53, 69, 0.3);
-            display: block;
-        }
-
-        /* ==================== 模态框（重置密码） ==================== */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: rgba(40, 40, 50, 0.98);
-            border-radius: 12px;
-            padding: 30px;
-            width: 90%;
-            max-width: 400px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .modal-title {
-            color: #e0e0e0;
-            font-size: 1.2rem;
-            margin-bottom: 20px;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 25px;
-        }
-
-        .modal-actions .btn {
-            flex: 1;
-        }
-
-        /* ==================== 数据库备份组件 ==================== */
-        .backup-panel {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 24px;
-            margin-top: 30px;
-            padding: 22px 25px;
-            background: rgba(50, 50, 60, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-        }
-
-        .backup-panel-copy {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-
-        .backup-panel-icon {
-            font-size: 2rem;
-        }
-
-        .backup-panel h2 {
-            color: #e0e0e0;
-            font-size: 1.1rem;
-            margin-bottom: 6px;
-        }
-
-        .backup-panel p {
-            color: #aaa;
-            font-size: 0.9rem;
-        }
-
-        .backup-panel-actions {
-            display: flex;
-            gap: 10px;
-            flex-shrink: 0;
-        }
-
-        .backup-panel button:disabled {
-            opacity: 0.6;
-            cursor: wait;
-        }
-
-        .backup-toast {
-            position: fixed;
-            top: 24px;
-            right: 24px;
-            z-index: 2000;
-            max-width: min(420px, calc(100vw - 48px));
-            padding: 14px 18px;
-            border-radius: 10px;
-            color: #fff;
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
-            opacity: 0;
-            transform: translateY(-12px);
-            pointer-events: none;
-            transition: opacity 0.2s ease, transform 0.2s ease;
-        }
-
-        .backup-toast.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .backup-toast.success {
-            background: #247a45;
-        }
-
-        .backup-toast.error {
-            background: #a73543;
-        }
-
-        /* ==================== 响应式设计 ==================== */
-        @media (max-width: 600px) {
-            .form-row {
-                flex-direction: column;
-            }
-
-            .checkbox-group {
-                padding-top: 0;
-            }
-
-            .header {
-                flex-direction: column;
-                gap: 15px;
-                text-align: center;
-            }
-        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: -apple-system,'Segoe UI','Microsoft YaHei',sans-serif; background:#f1f5f9; min-height:100vh; color:#0f172a; }
+        .topbar { background:#fff; border-bottom:1px solid #e2e8f0; padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+        .topbar-left { display:flex; align-items:center; gap:12px; }
+        .topbar-logo { width:32px; height:32px; background:#4f46e5; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:14px; }
+        .topbar-title { font-size:1rem; font-weight:600; }
+        .topbar-right { display:flex; align-items:center; gap:10px; }
+        .btn-topbar { padding:6px 14px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#475569; font-size:0.8125rem; cursor:pointer; transition:all 0.15s; text-decoration:none; }
+        .btn-topbar:hover { background:#f8fafc; border-color:#cbd5e1; }
+        .content { max-width:900px; margin:0 auto; padding:24px; }
+        .card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:16px; overflow:hidden; }
+        .card-header { padding:16px 20px; border-bottom:1px solid #f1f5f9; font-size:0.9375rem; font-weight:600; }
+        .card-body { padding:20px; }
+        .form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:16px; }
+        .form-group { display:flex; flex-direction:column; }
+        .form-group label { font-size:0.8125rem; font-weight:600; color:#334155; margin-bottom:4px; }
+        .form-group input, .form-group select { padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.875rem; background:#f8fafc; outline:none; transition:all 0.15s; }
+        .form-group input:focus, .form-group select:focus { border-color:#4f46e5; box-shadow:0 0 0 3px rgba(79,70,229,0.08); background:#fff; }
+        .btn { padding:10px 20px; border:none; border-radius:8px; font-size:0.875rem; font-weight:600; cursor:pointer; transition:all 0.15s; }
+        .btn-primary { background:#4f46e5; color:#fff; }
+        .btn-primary:hover { background:#4338ca; }
+        .btn-success { background:#059669; color:#fff; }
+        .btn-success:hover { background:#047857; }
+        .btn-danger { background:#dc2626; color:#fff; }
+        .btn-danger:hover { background:#b91c1c; }
+        .btn-sm { padding:6px 12px; font-size:0.8125rem; }
+        .btn:disabled { opacity:0.5; cursor:not-allowed; }
+        .message { padding:10px 14px; border-radius:8px; font-size:0.8125rem; margin-bottom:12px; }
+        .message.success { background:#f0fdf4; color:#059669; border:1px solid #bbf7d0; }
+        .message.error { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+        .table-wrap { overflow-x:auto; border-radius:8px; border:1px solid #e2e8f0; }
+        table { width:100%; border-collapse:collapse; font-size:0.875rem; }
+        th { background:#f8fafc; color:#475569; font-weight:600; font-size:0.8125rem; padding:10px 14px; text-align:left; border-bottom:1px solid #e2e8f0; }
+        td { padding:10px 14px; border-bottom:1px solid #f1f5f9; color:#334155; }
+        tr:hover td { background:#f8fafc; }
+        tr:last-child td { border-bottom:none; }
+        .user-actions { display:flex; gap:6px; }
+        .empty-state { text-align:center; padding:32px; color:#94a3b8; font-size:0.875rem; }
+        .badge-role { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.75rem; font-weight:600; }
+        .badge-admin { background:#eef2ff; color:#4f46e5; }
+        .badge-user { background:#f1f5f9; color:#475569; }
+        .toast-container { position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; flex-direction:column; gap:8px; }
+        .toast { padding:12px 20px; border-radius:8px; font-size:0.875rem; font-weight:500; box-shadow:0 4px 12px rgba(0,0,0,0.1); animation:slideIn 0.3s ease; }
+        .toast.success { background:#059669; color:#fff; }
+        .toast.error { background:#dc2626; color:#fff; }
+        @keyframes slideIn { from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)} }
+        .section-title { font-size:0.875rem; font-weight:600; color:#334155; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f1f5f9; }
+        .backup-item { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid #f1f5f9; }
+        .backup-item:last-child { border-bottom:none; }
+        .backup-name { font-size:0.875rem; font-weight:500; color:#0f172a; }
+        .backup-meta { font-size:0.75rem; color:#94a3b8; margin-top:2px; }
+        .backup-actions { display:flex; gap:6px; }
+        @media(max-width:768px) { .content{padding:16px;} .form-grid{grid-template-columns:1fr;} }
     </style>
 </head>
 <body>
-    <!-- 主容器 -->
-    <div class="container">
-        <!-- 页面头部 -->
-        <div class="header">
-            <h1>⚙️ 管理后台</h1>
-            <div class="header-actions">
-                <!-- 回收站入口 -->
-                <a href="/recycle-bin" class="btn btn-primary">🗑️ 回收站</a>
-                <!-- 返回主页按钮 -->
-                <a href="/" class="btn btn-primary">← 返回主页</a>
-                <!-- 退出登录按钮 -->
-                <button class="btn btn-danger" onclick="logout()">退出登录</button>
-            </div>
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="topbar-logo">S</div>
+            <span class="topbar-title">管理后台</span>
         </div>
-
-        <!-- 内容区域 -->
-        <div class="content">
-            <!-- 消息提示框 -->
-            <div id="messageBox"></div>
-
-            <!-- 添加用户区域 -->
-            <h2 class="section-title">添加新用户</h2>
-            <div class="add-user-form">
-                <form id="addUserForm" onsubmit="return addUser(event)">
-                    <div class="form-row">
-                        <!-- 用户名输入框 -->
-                        <div class="form-group">
-                            <label for="newUsername">用户名</label>
-                            <input type="text" id="newUsername" placeholder="请输入用户名" required>
-                        </div>
-                        <!-- 密码输入框 -->
-                        <div class="form-group">
-                            <label for="newPassword">密码</label>
-                            <input type="password" id="newPassword" placeholder="请输入密码（至少4位）" required>
-                        </div>
-                        <!-- 管理员复选框 -->
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="isAdmin">
-                            <label for="isAdmin">设为管理员</label>
-                        </div>
+        <div class="topbar-right">
+            <a href="/" class="btn-topbar">返回主页</a>
+            <a href="/recycle-bin" class="btn-topbar">回收站</a>
+            <button class="btn-topbar" onclick="logout()">退出</button>
+        </div>
+    </div>
+    <div class="content">
+        <!-- Add user -->
+        <div class="card">
+            <div class="card-header">添加用户</div>
+            <div class="card-body">
+                <div id="addUserMessage"></div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>用户名</label>
+                        <input type="text" id="newUsername" placeholder="请输入用户名">
                     </div>
-                    <!-- 提交按钮 -->
-                    <button type="submit" class="btn btn-success">添加用户</button>
-                </form>
+                    <div class="form-group">
+                        <label>密码</label>
+                        <input type="password" id="newPassword" placeholder="请输入密码">
+                    </div>
+                    <div class="form-group">
+                        <label>角色</label>
+                        <select id="newRole">
+                            <option value="user">普通用户</option>
+                            <option value="admin">管理员</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="addUser()">添加用户</button>
             </div>
-
-            <!-- 用户列表区域 -->
-            <h2 class="section-title">用户列表</h2>
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>用户名</th>
-                            <th>角色</th>
-                            <th>创建时间</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="userList">
-                        <!-- 动态加载用户数据 -->
-                        <tr><td colspan="5" style="text-align: center;">加载中...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- 数据库备份组件：放在管理员用户管理区域之后，便于管理员集中维护系统数据。 -->
-            {% include 'components/backup_panel.html' %}
         </div>
-    </div>
-
-    <!-- 重置密码模态框 -->
-    <div class="modal" id="passwordModal">
-        <div class="modal-content">
-            <h3 class="modal-title">重置密码</h3>
-            <div class="form-group">
-                <label for="resetPassword">新密码</label>
-                <input type="password" id="resetPassword" placeholder="请输入新密码（至少4位）">
+        <!-- User list -->
+        <div class="card">
+            <div class="card-header">用户列表</div>
+            <div class="card-body" style="padding:0">
+                <div id="userList"><div class="empty-state">加载中...</div></div>
             </div>
-            <!-- 隐藏域，存储要重置密码的用户ID -->
-            <input type="hidden" id="resetUserId">
-            <div class="modal-actions">
-                <button class="btn btn-primary" onclick="closeModal()">取消</button>
-                <button class="btn btn-success" onclick="submitResetPassword()">确认重置</button>
+        </div>
+        <!-- Backup -->
+        <div class="card">
+            <div class="card-header">数据库备份</div>
+            <div class="card-body">
+                <div id="backupMessage"></div>
+                <button class="btn btn-success" id="createBackupBtn" onclick="createBackup()">创建备份</button>
+                <div style="margin-top:20px">
+                    <div class="section-title">备份列表</div>
+                    <div id="backupList"><div class="empty-state">加载中...</div></div>
+                </div>
             </div>
         </div>
     </div>
-
-    {% include 'components/backup_script.html' %}
-
-    <!-- JavaScript 逻辑 -->
+    <div class="toast-container" id="toastContainer"></div>
     <script>
-        /**
-         * 检查登录状态和管理员权限
-         * 如果未登录或非管理员，跳转到登录页
-         */
-        async function checkLogin() {
-            try {
-                const response = await fetch('/api/check-login');
-                const result = await response.json();
-                // 未登录或非管理员则跳转
-                if (!result.logged_in || !result.is_admin) {
-                    window.location.href = '/login';
-                }
-            } catch (error) {
-                window.location.href = '/login';
-            }
-        }
-
-        /**
-         * 登出功能
-         * 调用登出API并跳转到登录页
-         */
-        async function logout() {
-            await fetch('/api/logout', {method: 'POST'});
-            window.location.href = '/login';
-        }
-
-        /**
-         * 加载用户列表
-         * 从后端API获取所有用户并渲染到表格中
-         */
+        function toast(msg,type) { const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className='toast '+(type||'info'); t.textContent=msg; c.appendChild(t); setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(()=>t.remove(),300)},3000); }
+        function showMessage(elId,text,type) { document.getElementById(elId).innerHTML='<div class="message '+type+'">'+text+'</div>'; setTimeout(()=>{document.getElementById(elId).innerHTML='';},3000); }
+        async function logout() { try{await fetch('/api/logout',{method:'POST'})}catch(e){} window.location.href='/login'; }
+        /* Users */
         async function loadUsers() {
             try {
-                const response = await fetch('/api/admin/users');
-                const result = await response.json();
-
-                if (result.success) {
-                    const tbody = document.getElementById('userList');
-                    
-                    // 无数据时显示提示
-                    if (result.data.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">暂无用户</td></tr>';
-                        return;
-                    }
-
-                    // 构建用户列表HTML
-                    let html = '';
-                    result.data.forEach(user => {
-                        // 根据is_admin判断显示的标签样式和文字
-                        const badgeClass = user.is_admin ? 'badge-admin' : 'badge-user';
-                        const badgeText = user.is_admin ? '管理员' : '普通用户';
-                        
-                        html += `
-                            <tr>
-                                <td>${user.id}</td>
-                                <td>${user.username}</td>
-                                <td>
-                                    <span class="badge ${badgeClass}">
-                                        ${badgeText}
-                                    </span>
-                                </td>
-                                <td>${user.created_at || '-'}</td>
-                                <td class="actions">
-                                    <button class="btn btn-primary btn-sm" onclick="openResetModal(${user.id})">重置密码</button>
-                                    <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id}, '${user.username}')">删除</button>
-                                </td>
-                            </tr>
-                        `;
+                const r = await fetch('/api/users');
+                const d = await r.json();
+                const c = document.getElementById('userList');
+                if (d.success && d.data.length) {
+                    let h = '<div class="table-wrap"><table><thead><tr><th>用户名</th><th>角色</th><th>操作</th></tr></thead><tbody>';
+                    d.data.forEach(u => {
+                        const roleClass = u.role==='admin'?'badge-admin':'badge-user';
+                        const roleLabel = u.role==='admin'?'管理员':'用户';
+                        h += '<tr><td><strong>'+u.username+'</strong></td><td><span class="badge-role '+roleClass+'">'+roleLabel+'</span></td><td class="user-actions"><button class="btn btn-primary btn-sm" onclick="resetPassword(\''+u.username+'\')">重置密码</button><button class="btn btn-danger btn-sm" onclick="deleteUser(\''+u.username+'\')">删除</button></td></tr>';
                     });
-                    tbody.innerHTML = html;
-                }
-            } catch (error) {
-                // 加载失败提示
-                document.getElementById('userList').innerHTML = '<tr><td colspan="5" style="text-align: center; color: #ff6b6b;">加载失败</td></tr>';
-            }
+                    h += '</tbody></table></div>';
+                    c.innerHTML = h;
+                } else c.innerHTML = '<div class="empty-state">暂无用户</div>';
+            } catch (e) { document.getElementById('userList').innerHTML = '<div class="empty-state">加载失败</div>'; }
         }
-
-        /**
-         * 添加新用户
-         * 收集表单数据并发送到后端API
-         * 
-         * @param {Event} event - 表单提交事件
-         * @returns {boolean} - 返回false阻止默认提交
-         */
-        async function addUser(event) {
-            event.preventDefault();
-
-            // 收集表单数据
+        async function addUser() {
             const username = document.getElementById('newUsername').value.trim();
             const password = document.getElementById('newPassword').value;
-            const is_admin = document.getElementById('isAdmin').checked ? 1 : 0;
-
-            // 验证输入
-            if (!username || !password) {
-                showMessage('用户名和密码不能为空', 'error');
-                return false;
-            }
-
-            if (password.length < 4) {
-                showMessage('密码至少4位', 'error');
-                return false;
-            }
-
+            const role = document.getElementById('newRole').value;
+            if (!username || !password) { showMessage('addUserMessage','请填写用户名和密码','error'); return; }
             try {
-                // 发送添加用户请求
-                const response = await fetch('/api/admin/user', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({username, password, is_admin})
-                });
-
-                const result = await response.json();
-                if (result.success) {
-                    showMessage(result.message, 'success');
-                    // 清空表单
-                    document.getElementById('addUserForm').reset();
-                    // 刷新用户列表
-                    loadUsers();
-                } else {
-                    showMessage(result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('添加失败', 'error');
-            }
-
-            return false;
+                const r = await fetch('/api/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username,password,role})});
+                const d = await r.json();
+                if (d.success) { showMessage('addUserMessage',d.message,'success'); document.getElementById('newUsername').value=''; document.getElementById('newPassword').value=''; loadUsers(); toast(d.message,'success'); }
+                else showMessage('addUserMessage',d.message,'error');
+            } catch (e) { showMessage('addUserMessage','添加失败: '+e.message,'error'); }
         }
-
-        /**
-         * 打开重置密码模态框
-         * 
-         * @param {number} userId - 要重置密码的用户ID
-         */
-        function openResetModal(userId) {
-            // 保存用户ID到隐藏域
-            document.getElementById('resetUserId').value = userId;
-            // 清空密码输入框
-            document.getElementById('resetPassword').value = '';
-            // 显示模态框
-            document.getElementById('passwordModal').classList.add('active');
-        }
-
-        /**
-         * 关闭模态框
-         */
-        function closeModal() {
-            document.getElementById('passwordModal').classList.remove('active');
-        }
-
-        /**
-         * 提交重置密码请求
-         */
-        async function submitResetPassword() {
-            const userId = document.getElementById('resetUserId').value;
-            const password = document.getElementById('resetPassword').value;
-
-            // 验证密码
-            if (!password || password.length < 4) {
-                showMessage('密码至少4位', 'error');
-                return;
-            }
-
+        async function resetPassword(username) {
+            const pw = prompt('请输入 '+username+' 的新密码：');
+            if (!pw) return;
             try {
-                // 发送重置密码请求
-                const response = await fetch(`/api/admin/user/${userId}/password`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({password})
-                });
-
-                const result = await response.json();
-                if (result.success) {
-                    showMessage(result.message, 'success');
-                    closeModal();  // 关闭模态框
-                } else {
-                    showMessage(result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('重置失败', 'error');
-            }
+                const r = await fetch('/api/users/'+encodeURIComponent(username)+'/reset-password', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw})});
+                const d = await r.json();
+                if (d.success) toast(d.message,'success');
+                else toast(d.message,'error');
+            } catch (e) { toast('重置失败','error'); }
         }
-
-        /**
-         * 删除用户
-         * 
-         * @param {number} userId - 要删除的用户ID
-         * @param {string} username - 用户名（用于确认提示）
-         */
-        async function deleteUser(userId, username) {
-            // 确认删除
-            if (!confirm(`确定要删除用户 "${username}" 吗？`)) {
-                return;
-            }
-
+        async function deleteUser(username) {
+            if (!confirm('确定删除用户 "'+username+'" 吗？')) return;
             try {
-                // 发送删除请求
-                const response = await fetch(`/api/admin/user/${userId}`, {
-                    method: 'DELETE'
-                });
-
-                const result = await response.json();
-                if (result.success) {
-                    showMessage(result.message, 'success');
-                    loadUsers();  // 刷新用户列表
-                } else {
-                    showMessage(result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('删除失败', 'error');
-            }
+                const r = await fetch('/api/users/'+encodeURIComponent(username), {method:'DELETE'});
+                const d = await r.json();
+                if (d.success) { toast(d.message,'success'); loadUsers(); }
+                else toast(d.message,'error');
+            } catch (e) { toast('删除失败','error'); }
         }
-
-        /**
-         * 显示消息提示
-         * 3秒后自动隐藏
-         * 
-         * @param {string} text - 消息文本
-         * @param {string} type - 消息类型：'error' 或 'success'
-         */
-        function showMessage(text, type) {
-            const box = document.getElementById('messageBox');
-            box.textContent = text;
-            box.className = 'message ' + type;
-            // 3秒后自动隐藏
-            setTimeout(() => { box.className = 'message'; }, 3000);
+        /* Backup */
+        async function loadBackups() {
+            try {
+                const r = await fetch('/api/backups');
+                const d = await r.json();
+                const c = document.getElementById('backupList');
+                if (d.success && d.data.length) {
+                    c.innerHTML = d.data.map(b => '<div class="backup-item"><div><div class="backup-name">'+b.filename+'</div><div class="backup-meta">'+b.size+' · '+b.created_at+'</div></div><div class="backup-actions"><a href="/api/backups/'+b.filename+'/download" class="btn btn-primary btn-sm" style="text-decoration:none">下载</a><button class="btn btn-danger btn-sm" onclick="deleteBackup(\''+b.filename+'\')">删除</button></div></div>').join('');
+                } else c.innerHTML = '<div class="empty-state">暂无备份</div>';
+            } catch (e) { document.getElementById('backupList').innerHTML = '<div class="empty-state">加载失败</div>'; }
         }
-
-        // 页面加载完成后执行
-        checkLogin();   // 检查登录状态
-        loadUsers();    // 加载用户列表
+        async function createBackup() {
+            const btn = document.getElementById('createBackupBtn');
+            btn.disabled = true; btn.textContent = '创建中...';
+            try {
+                const r = await fetch('/api/backups', {method:'POST'});
+                const d = await r.json();
+                if (d.success) { showMessage('backupMessage',d.message,'success'); loadBackups(); toast(d.message,'success'); }
+                else showMessage('backupMessage',d.message,'error');
+            } catch (e) { showMessage('backupMessage','创建失败: '+e.message,'error'); }
+            btn.disabled = false; btn.textContent = '创建备份';
+        }
+        async function deleteBackup(filename) {
+            if (!confirm('确定删除备份 "'+filename+'" 吗？')) return;
+            try {
+                const r = await fetch('/api/backups/'+encodeURIComponent(filename), {method:'DELETE'});
+                const d = await r.json();
+                if (d.success) { toast(d.message,'success'); loadBackups(); }
+                else toast(d.message,'error');
+            } catch (e) { toast('删除失败','error'); }
+        }
+        loadUsers();
+        loadBackups();
     </script>
 </body>
 </html>

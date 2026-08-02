@@ -1,1346 +1,582 @@
-<!--
-================================================================================
-文件名称: index.html
-文件描述: 员工信息管理系统主页面
-主要功能:
-    1. 人员查询 - 支持按姓名或拼音首字母搜索员工信息
-    2. 录入/更新 - 新增或编辑员工基本信息（姓名、身份证、银行账号等）
-    3. 导出Excel - 将员工信息导出为Excel文件，支持文件匹配和手动输入两种方式
-    4. 用户认证 - 登录状态检查、显示当前用户、退出登录功能
-    5. 权限管理 - 管理员用户可访问后台管理页面
-
-技术栈:
-    - 前端: HTML5 + CSS3 + JavaScript (原生)
-    - 样式: 渐变配色、响应式布局、动画效果
-    - 后端API: RESTful接口 (/api/*)
-================================================================================
--->
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>员工信息管理系统</title>
     <style>
-        /* ============================================================
-           全局样式 - 重置浏览器默认样式，设置全局字体和背景
-           ============================================================ */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin:0; padding:0; box-sizing:border-box; }
         body {
-            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
+            font-family: -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #f1f5f9; min-height: 100vh; color: #0f172a;
         }
-
-        /* ============================================================
-           主容器样式 - 页面主体内容区域
-           ============================================================ */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
+        /* Header */
+        .topbar {
+            background: #fff; border-bottom: 1px solid #e2e8f0;
+            padding: 0 24px; height: 56px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 100;
         }
-
-        /* ============================================================
-           头部样式 - 页面顶部导航栏和用户信息展示区
-           ============================================================ */
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 25px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .topbar-left { display: flex; align-items: center; gap: 12px; }
+        .topbar-logo {
+            width: 32px; height: 32px; background: #4f46e5; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-weight: 700; font-size: 14px;
         }
-
-        /* 头部左侧：系统标题和副标题 */
-        .header-left h1 {
-            font-size: 2rem;
-            margin-bottom: 5px;
+        .topbar-title { font-size: 1rem; font-weight: 600; color: #0f172a; }
+        .topbar-right { display: flex; align-items: center; gap: 10px; }
+        .user-badge {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 12px; background: #f1f5f9; border-radius: 6px;
+            font-size: 0.8125rem; color: #475569;
         }
-
-        .header-left p {
-            opacity: 0.9;
-            font-size: 0.95rem;
+        .user-badge .dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; }
+        .btn-topbar {
+            padding: 6px 14px; border: 1px solid #e2e8f0; border-radius: 6px;
+            background: #fff; color: #475569; font-size: 0.8125rem;
+            cursor: pointer; transition: all 0.15s; text-decoration: none;
         }
-
-        /* 头部右侧：用户信息和操作按钮 */
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 15px;
+        .btn-topbar:hover { background: #f8fafc; border-color: #cbd5e1; }
+        #adminBtn { display: none; color: #4f46e5; border-color: #c7d2fe; }
+        #adminBtn:hover { background: #eef2ff; }
+        /* Tabs */
+        .tabs-bar {
+            background: #fff; border-bottom: 1px solid #e2e8f0;
+            padding: 0 24px; display: flex; gap: 0;
         }
-
-        /* 用户信息显示区域 */
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 18px;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 25px;
-            font-size: 0.95rem;
-        }
-
-        .user-info .user-icon {
-            font-size: 1.2rem;
-        }
-
-        /* 退出登录按钮 */
-        .btn-logout {
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 8px;
-            color: white;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .btn-logout:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        /* 管理后台入口按钮 */
-        .btn-admin {
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            color: white;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-        }
-
-        .btn-admin:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        /* ============================================================
-           标签页导航样式 - 三个功能模块的切换标签
-           ============================================================ */
-        .tabs {
-            display: flex;
-            background: #f0f2f5;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
         .tab {
-            flex: 1;
-            padding: 18px 20px;
-            text-align: center;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 500;
-            color: #666;
-            transition: all 0.3s ease;
-            border: none;
-            background: none;
+            padding: 12px 20px; font-size: 0.875rem; font-weight: 500;
+            color: #64748b; cursor: pointer; border: none; background: none;
+            border-bottom: 2px solid transparent; transition: all 0.15s;
+            white-space: nowrap;
         }
-
-        .tab:hover {
-            background: #e8eaf0;
-            color: #667eea;
+        .tab:hover { color: #4f46e5; }
+        .tab.active { color: #4f46e5; border-bottom-color: #4f46e5; font-weight: 600; }
+        #logsTab { display: none; }
+        /* Content */
+        .content { max-width: 1100px; margin: 0 auto; padding: 24px; }
+        .panel { display: none; animation: fadeIn 0.2s ease; }
+        .panel.active { display: block; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+        /* Card */
+        .card {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+            margin-bottom: 16px; overflow: hidden;
         }
-
-        .tab.active {
-            background: white;
-            color: #667eea;
-            border-bottom: 3px solid #667eea;
-            font-weight: 600;
+        .card-header {
+            padding: 16px 20px; border-bottom: 1px solid #f1f5f9;
+            font-size: 0.9375rem; font-weight: 600; color: #0f172a;
         }
-
-        /* ============================================================
-           面板样式 - 各功能模块的内容区域
-           ============================================================ */
-        .panel {
-            display: none;
-            padding: 30px;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .panel.active {
-            display: block;
-        }
-
-        /* 面板切换动画效果 */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* ============================================================
-           搜索面板样式 - 查询功能区域的样式定义
-           ============================================================ */
-        .search-box {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 25px;
-        }
-
+        .card-body { padding: 20px; }
+        /* Search */
+        .search-row { display: flex; gap: 10px; margin-bottom: 20px; }
         .search-input {
-            flex: 1;
-            padding: 14px 20px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
+            flex: 1; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+            font-size: 0.9375rem; background: #f8fafc; transition: all 0.15s; outline: none;
         }
-
-        .search-input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
-        }
-
-        /* ============================================================
-           按钮样式 - 通用按钮及不同状态按钮的颜色定义
-           ============================================================ */
+        .search-input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.08); background: #fff; }
+        /* Buttons */
         .btn {
-            padding: 14px 30px;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            padding: 10px 20px; border: none; border-radius: 8px;
+            font-size: 0.875rem; font-weight: 600; cursor: pointer;
+            transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
         }
-
-        /* 主要操作按钮样式 */
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        .btn-primary { background: #4f46e5; color: #fff; }
+        .btn-primary:hover { background: #4338ca; }
+        .btn-success { background: #059669; color: #fff; }
+        .btn-success:hover { background: #047857; }
+        .btn-danger { background: #dc2626; color: #fff; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-outline {
+            background: #fff; color: #475569; border: 1.5px solid #e2e8f0;
         }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        .btn-outline:hover { border-color: #cbd5e1; background: #f8fafc; }
+        .btn-sm { padding: 6px 12px; font-size: 0.8125rem; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        /* Form */
+        .form-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px; margin-bottom: 20px;
         }
-
-        /* 成功/确认操作按钮样式 */
-        .btn-success {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            color: white;
-        }
-
-        .btn-success:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(17, 153, 142, 0.4);
-        }
-
-        /* 危险/删除操作按钮样式 */
-        .btn-danger {
-            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(235, 51, 73, 0.4);
-        }
-
-        /* ============================================================
-           表格样式 - 搜索结果和数据展示表格
-           ============================================================ */
-        .table-container {
-            overflow-x: auto;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-        }
-
-        th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 16px;
-            text-align: left;
-            font-weight: 600;
-        }
-
-        td {
-            padding: 14px 16px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        tr:hover {
-            background: #f8f9ff;
-        }
-
-        /* ============================================================
-           表单样式 - 员工信息录入表单
-           ============================================================ */
-        .form-container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
+        .form-group { display: flex; flex-direction: column; }
         .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #333;
+            font-size: 0.8125rem; font-weight: 600; color: #334155; margin-bottom: 4px;
         }
-
         .form-group input {
-            width: 100%;
-            padding: 14px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
+            padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+            font-size: 0.875rem; background: #f8fafc; outline: none; transition: all 0.15s;
         }
-
         .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.08); background: #fff;
         }
-
-        .form-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
+        .form-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        /* Table */
+        .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        th {
+            background: #f8fafc; color: #475569; font-weight: 600; font-size: 0.8125rem;
+            padding: 10px 14px; text-align: left; border-bottom: 1px solid #e2e8f0;
+            white-space: nowrap;
         }
-
-        .form-buttons .btn {
-            flex: 1;
+        td {
+            padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: #334155;
         }
-
-        /* ============================================================
-           消息提示样式 - 操作反馈信息显示
-           ============================================================ */
-        .message {
-            padding: 15px 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-weight: 500;
+        tr:hover td { background: #f8fafc; }
+        tr:last-child td { border-bottom: none; }
+        /* Employee list */
+        .emp-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px; border-bottom: 1px solid #f1f5f9;
+            transition: background 0.1s;
         }
-
-        .message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .message.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        /* ============================================================
-           导出面板样式 - Excel导出功能区域
-           ============================================================ */
-        .export-section {
-            text-align: center;
-            padding: 40px;
-        }
-
-        .export-section h2 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-
-        .export-section p {
-            color: #666;
-            margin-bottom: 30px;
-        }
-
-        .export-icon {
-            font-size: 4rem;
-            margin-bottom: 20px;
-        }
-
-        /* ============================================================
-           员工列表样式 - 录入面板中的已有人员列表
-           ============================================================ */
-        .employee-list {
-            max-height: 400px;
-            overflow-y: auto;
-            margin-bottom: 20px;
-            border: 1px solid #e0e0e0;
-            border-radius: 10px;
-        }
-
-
-        /* 分页控件样式 */
+        .emp-item:hover { background: #f8fafc; }
+        .emp-item:last-child { border-bottom: none; }
+        .emp-name { font-weight: 600; font-size: 0.9375rem; color: #0f172a; }
+        .emp-phone { font-size: 0.8125rem; color: #94a3b8; margin-top: 2px; }
+        .emp-actions { display: flex; gap: 6px; }
+        /* Pagination */
         .pagination {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 12px 0;
-            font-size: 14px;
-            color: #666;
+            display: flex; align-items: center; justify-content: center;
+            gap: 8px; padding: 16px 0;
         }
         .pagination button {
-            padding: 6px 14px;
-            border: 1px solid #d0d0d0;
-            border-radius: 6px;
-            background: #fff;
-            color: #333;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.2s;
+            padding: 6px 14px; border: 1px solid #e2e8f0; border-radius: 6px;
+            background: #fff; color: #475569; font-size: 0.8125rem;
+            cursor: pointer; transition: all 0.15s;
         }
-        .pagination button:hover:not(:disabled) {
-            background: #007bff;
-            color: #fff;
-            border-color: #007bff;
+        .pagination button:hover:not(:disabled) { border-color: #4f46e5; color: #4f46e5; }
+        .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .page-info { font-size: 0.8125rem; color: #64748b; }
+        /* Message */
+        .message {
+            padding: 10px 14px; border-radius: 8px; font-size: 0.8125rem;
+            margin-bottom: 12px; display: inline-block;
         }
-        .pagination button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-        .pagination .page-info {
-            margin: 0 8px;
-            color: #888;
-        }
-
-        .employee-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            border-bottom: 1px solid #f0f0f0;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .employee-item:hover {
-            background: #f8f9ff;
-        }
-
-        .employee-item:last-child {
-            border-bottom: none;
-        }
-
-        .employee-item .name {
-            font-weight: 500;
-            color: #333;
-        }
-
-        .employee-item .phone {
-            color: #999;
-            font-size: 0.9rem;
-        }
-
-        .employee-item .actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        /* 小尺寸按钮 */
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 0.85rem;
-            border-radius: 6px;
-        }
-
-        /* 空状态提示样式 */
+        .message.success { background: #f0fdf4; color: #059669; border: 1px solid #bbf7d0; }
+        .message.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .message.info { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; }
+        /* Empty state */
         .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: #999;
+            text-align: center; padding: 48px 20px; color: #94a3b8;
         }
-
         .empty-state svg {
-            width: 60px;
-            height: 60px;
-            margin-bottom: 15px;
-            opacity: 0.5;
+            width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.4;
         }
-
-        /* ============================================================
-           手动输入导出样式 - 手动输入姓名进行导出的功能区域
-           ============================================================ */
-        .manual-export-section {
-            background: #f8f9ff;
-            border-radius: 15px;
-            padding: 25px;
-            margin-top: 30px;
-            border: 2px dashed #667eea;
-        }
-
-        .manual-export-section h3 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .manual-export-section p {
-            color: #666;
-            margin-bottom: 20px;
-            font-size: 0.95rem;
-        }
-
-        /* 姓名输入框容器 */
-        .name-input-box {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .name-input-box input {
-            flex: 1;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1rem;
-        }
-
-        .name-input-box input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        /* 已添加姓名列表 */
-        .name-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        /* 姓名标签样式 */
+        .empty-state p { font-size: 0.875rem; }
+        /* Name tags */
+        .name-tags { display: flex; flex-wrap: wrap; gap: 8px; min-height: 32px; align-items: center; }
         .name-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 14px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 20px;
-            font-size: 0.95rem;
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px; background: #eef2ff; color: #4f46e5;
+            border-radius: 6px; font-size: 0.8125rem; font-weight: 500;
         }
-
         .name-tag .remove {
-            cursor: pointer;
-            font-weight: bold;
-            opacity: 0.8;
+            cursor: pointer; font-size: 1rem; line-height: 1; opacity: 0.6;
+            margin-left: 2px;
         }
-
-        .name-tag .remove:hover {
-            opacity: 1;
+        .name-tag .remove:hover { opacity: 1; }
+        /* Import badges */
+        .badge {
+            display: inline-block; padding: 3px 10px; border-radius: 20px;
+            font-size: 0.75rem; font-weight: 600;
         }
-
-        .export-options {
-            display: flex;
-            gap: 20px;
-            margin-top: 20px;
-        }
-
-        /* 分隔线样式 */
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 25px 0;
-            color: #999;
-        }
-
-        .divider::before, .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: #e0e0e0;
-        }
-
-        .divider span {
-            padding: 0 15px;
-            font-size: 0.9rem;
-        }
-
-        /* ============================================================
-           导入面板样式 - Excel上传导入功能区域
-           ============================================================ */
-        .upload-box {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            align-items: center;
-            margin-top: 20px;
-            flex-wrap: wrap;
-        }
-
-        .upload-box input[type="file"] {
-            padding: 12px;
-            border: 2px dashed #667eea;
-            border-radius: 10px;
-            background: #f8f9ff;
-            font-size: 0.95rem;
-            max-width: 400px;
-        }
-
-        /* 校验报告汇总徽章 */
-        .import-summary {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            margin: 20px 0;
-            flex-wrap: wrap;
-        }
-
-        .summary-badge {
-            padding: 8px 18px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-
-        .summary-new { background: #d4edda; color: #155724; }
-        .summary-update { background: #cce5ff; color: #004085; }
-        .summary-restore { background: #fff3cd; color: #856404; }
-        .summary-error { background: #f8d7da; color: #721c24; }
-
-        /* 行状态徽章 */
+        .badge-new { background: #dbeafe; color: #2563eb; }
+        .badge-update { background: #fef3c7; color: #d97706; }
+        .badge-restore { background: #d1fae5; color: #059669; }
+        .badge-error { background: #fee2e2; color: #dc2626; }
+        .badge-total { background: #f1f5f9; color: #475569; }
+        .row-error td { background: #fef2f2; }
         .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            white-space: nowrap;
+            display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-size: 0.75rem; font-weight: 600;
         }
-
-        .status-new { background: #d4edda; color: #155724; }
-        .status-update { background: #cce5ff; color: #004085; }
-        .status-restore { background: #fff3cd; color: #856404; }
-        .status-error { background: #f8d7da; color: #721c24; }
-
-        /* 错误行高亮 */
-        tr.row-error {
-            background: #fff5f5;
+        .status-new { background: #dbeafe; color: #2563eb; }
+        .status-update { background: #fef3c7; color: #d97706; }
+        .status-restore { background: #d1fae5; color: #059669; }
+        .status-error { background: #fee2e2; color: #dc2626; }
+        /* Logs */
+        .log-filters {
+            display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px;
         }
-
-        tr.row-error:hover {
-            background: #ffe8e8;
+        .log-filters select, .log-filters input {
+            padding: 7px 12px; border: 1.5px solid #e2e8f0; border-radius: 6px;
+            font-size: 0.8125rem; background: #fff; outline: none;
         }
-
-        .row-messages {
-            color: #b3560e;
-            font-size: 0.85rem;
-        }
-
-        /* ==================== 操作日志面板 ==================== */
-        /* 分类切换：系统日志 / 数据库改动日志（分段控件） */
-        .logs-category {
-            display: inline-flex;
-            margin-bottom: 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
+        .log-filters select:focus, .log-filters input:focus { border-color: #4f46e5; }
+        .log-filters input { flex: 1; min-width: 160px; }
+        .log-cat-btns { display: flex; gap: 6px; }
         .log-cat-btn {
-            padding: 10px 24px;
-            border: none;
-            background: white;
-            color: #666;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: all 0.2s;
+            padding: 6px 14px; border: 1px solid #e2e8f0; border-radius: 6px;
+            background: #fff; font-size: 0.8125rem; cursor: pointer; transition: all 0.15s;
         }
-
-        .log-cat-btn + .log-cat-btn {
-            border-left: 2px solid #e0e0e0;
-        }
-
-        .log-cat-btn:hover:not(.active) {
-            background: #f5f7ff;
-            color: #667eea;
-        }
-
-        .log-cat-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-weight: 600;
-        }
-
-        /* 工具栏：日期/级别筛选 + 关键词搜索 + 刷新 */
-        .logs-toolbar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
-
-        .log-select {
-            padding: 10px 14px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 0.95rem;
-            background: white;
-            color: #333;
-            cursor: pointer;
-        }
-
-        .log-select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .log-search {
-            flex: 1;
-            min-width: 180px;
-            padding: 10px 14px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 0.95rem;
-        }
-
-        .log-search:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        /* 级别统计徽章 */
-        .logs-stats {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
-
+        .log-cat-btn.active { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+        .log-stat-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
         .log-stat-badge {
-            padding: 5px 14px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
+            padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
         }
-
-        .log-stat-total { background: #f0f0f0; color: #555; }
-        .log-stat-info { background: #e3f2fd; color: #1565c0; }
-        .log-stat-warning { background: #fff3e0; color: #e65100; }
-        .log-stat-error { background: #ffebee; color: #c62828; }
-
-        /* 日志列表：固定高度滚动，逐行展示 */
-        .logs-list {
-            background: #fafafa;
-            border: 1px solid #eee;
-            border-radius: 12px;
-            max-height: 520px;
-            overflow-y: auto;
-        }
-
+        .log-stat-total { background: #f1f5f9; color: #475569; }
+        .log-stat-info { background: #dbeafe; color: #2563eb; }
+        .log-stat-warning { background: #fef3c7; color: #d97706; }
+        .log-stat-error { background: #fee2e2; color: #dc2626; }
+        .log-list { border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
         .log-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 10px 14px;
-            border-bottom: 1px solid #f0f0f0;
-            border-left: 4px solid transparent;
-            font-size: 0.92rem;
+            display: grid; grid-template-columns: 80px 60px 1fr 120px;
+            gap: 12px; padding: 8px 14px; font-size: 0.8125rem;
+            border-bottom: 1px solid #f1f5f9; align-items: center;
         }
-
         .log-row:last-child { border-bottom: none; }
-        .log-row:hover { background: #f0f4ff; }
-
-        /* 级别配色：左边框 + 行底色区分 */
-        .log-row-level-info { border-left-color: #42a5f5; }
-        .log-row-level-warning { border-left-color: #ffa726; background: #fffdf5; }
-        .log-row-level-error,
-        .log-row-level-critical { border-left-color: #ef5350; background: #fffafa; }
-
-        .log-time {
-            color: #999;
-            font-family: Consolas, Monaco, monospace;
-            font-size: 0.85rem;
-            white-space: nowrap;
-            padding-top: 2px;
-        }
-
+        .log-row:hover { background: #f8fafc; }
+        .log-time { color: #94a3b8; font-family: 'Consolas', monospace; font-size: 0.75rem; }
         .log-level-badge {
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            white-space: nowrap;
+            display: inline-block; padding: 1px 6px; border-radius: 3px;
+            font-size: 0.6875rem; font-weight: 700; text-align: center;
         }
-
-        .log-level-info { background: #e3f2fd; color: #1565c0; }
-        .log-level-warning { background: #fff3e0; color: #e65100; }
-        .log-level-error,
-        .log-level-critical { background: #ffebee; color: #c62828; }
-        .log-level-debug { background: #eceff1; color: #546e7a; }
-
-        .log-message {
-            flex: 1;
-            color: #333;
-            word-break: break-all;
-            white-space: pre-wrap;  /* 保留 traceback 等多行消息的换行 */
+        .log-level-info { background: #dbeafe; color: #2563eb; }
+        .log-level-warning { background: #fef3c7; color: #d97706; }
+        .log-level-error, .log-level-critical { background: #fee2e2; color: #dc2626; }
+        .log-message { color: #334155; word-break: break-all; }
+        .log-module { color: #94a3b8; font-size: 0.75rem; text-align: right; }
+        .log-row-level-warning { border-left: 3px solid #f59e0b; }
+        .log-row-level-error, .log-row-level-critical { border-left: 3px solid #ef4444; }
+        /* Toast */
+        .toast-container {
+            position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+            display: flex; flex-direction: column; gap: 8px;
         }
-
-        .log-module {
-            color: #bbb;
-            font-size: 0.78rem;
-            white-space: nowrap;
-            padding-top: 2px;
+        .toast {
+            padding: 12px 20px; border-radius: 8px; font-size: 0.875rem;
+            font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            animation: slideIn 0.3s ease;
         }
-
-        /* 分页控件 */
-        .logs-pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 12px;
-            margin-top: 15px;
+        .toast.success { background: #059669; color: #fff; }
+        .toast.error { background: #dc2626; color: #fff; }
+        .toast.info { background: #2563eb; color: #fff; }
+        @keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+        /* Upload area */
+        .upload-area {
+            border: 2px dashed #e2e8f0; border-radius: 8px; padding: 24px;
+            text-align: center; cursor: pointer; transition: all 0.15s;
         }
-
-        .logs-pagination button {
-            padding: 8px 16px;
-            border: 2px solid #e0e0e0;
-            background: white;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            color: #555;
+        .upload-area:hover { border-color: #4f46e5; background: #f8faff; }
+        .upload-area input[type="file"] { display: none; }
+        .upload-area .icon { font-size: 2rem; margin-bottom: 8px; opacity: 0.4; }
+        .upload-area p { font-size: 0.8125rem; color: #64748b; }
+        /* Section title */
+        .section-title {
+            font-size: 0.875rem; font-weight: 600; color: #334155;
+            margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9;
         }
-
-        .logs-pagination button:hover:not(:disabled) {
-            border-color: #667eea;
-            color: #667eea;
-        }
-
-        .logs-pagination button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .logs-pagination .page-info {
-            color: #777;
-            font-size: 0.9rem;
+        /* Summary badges row */
+        .summary-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+        /* Responsive */
+        @media (max-width: 768px) {
+            .content { padding: 16px; }
+            .topbar { padding: 0 16px; }
+            .tabs-bar { padding: 0 16px; overflow-x: auto; }
+            .form-grid { grid-template-columns: 1fr; }
+            .log-row { grid-template-columns: 1fr; gap: 4px; }
         }
     </style>
 </head>
 <body>
-    <!-- ==================== 主容器开始 ==================== -->
-    <div class="container">
-        
-        <!-- ==================== 页面头部 ==================== -->
-        <!-- 包含系统标题、当前用户信息和操作按钮 -->
-        <div class="header">
-            <!-- 头部左侧：系统名称和描述 -->
-            <div class="header-left">
-                <h1>员工信息管理系统</h1>
-                <p>查询 · 录入 · 导出 - 轻松管理员工信息</p>
-            </div>
-            <!-- 头部右侧：用户信息和功能按钮 -->
-            <div class="header-right">
-                <!-- 当前登录用户信息显示 -->
-                <div class="user-info">
-                    <span class="user-icon">👤</span>
-                    <span id="currentUsername">加载中...</span>
-                </div>
-                <!-- 回收站入口（所有登录用户可见） -->
-                <a href="/recycle-bin" class="btn-admin">🗑️ 回收站</a>
-                <!-- 管理后台入口（仅管理员可见） -->
-                <a href="/admin" class="btn-admin" id="adminBtn" style="display: none;">⚙️ 管理后台</a>
-                <!-- 退出登录按钮 -->
-                <button class="btn-logout" onclick="logout()">退出登录</button>
-            </div>
+    <!-- Top bar -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="topbar-logo">S</div>
+            <span class="topbar-title">员工信息管理系统</span>
         </div>
-
-        <!-- ==================== 标签页导航 ==================== -->
-        <!-- 五个功能模块的切换标签（操作日志仅管理员可见） -->
-        <div class="tabs">
-            <button class="tab active" data-panel="search">🔍 人员查询</button>
-            <button class="tab" data-panel="entry">📝 录入/更新</button>
-            <button class="tab" data-panel="export">📊 导出Excel</button>
-            <button class="tab" data-panel="import">📥 导入Excel</button>
-            <button class="tab" data-panel="logs" id="logsTab" style="display: none;">📋 操作日志</button>
-        </div>
-
-        <!-- ==================== 查询面板 ==================== -->
-        <!-- 功能：按姓名或拼音首字母搜索员工信息 -->
-        <div class="panel active" id="search">
-            <!-- 搜索输入区域 -->
-            <div class="search-box">
-                <input type="text" class="search-input" id="searchInput" placeholder="请输入姓名或拼音首字母进行搜索...">
-                <button class="btn btn-primary" onclick="searchEmployee()">搜索</button>
+        <div class="topbar-right">
+            <div class="user-badge">
+                <span class="dot"></span>
+                <span id="currentUsername">-</span>
             </div>
-            <!-- 搜索结果展示区域 -->
-            <div id="searchResults">
-                <div class="empty-state">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="M21 21l-4.35-4.35"></path>
-                    </svg>
-                    <p>输入姓名或拼音首字母进行搜索</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- ==================== 录入/更新面板 ==================== -->
-        <!-- 功能：新增或编辑员工基本信息 -->
-        <div class="panel" id="entry">
-            <div class="form-container">
-                <!-- 操作消息提示区域 -->
-                <div id="entryMessage"></div>
-
-                <!-- 表单标题 -->
-                <h3 style="margin-bottom: 20px; color: #333;" id="formTitle">新增员工信息</h3>
-
-                <!-- 员工信息录入表单 -->
-                <!-- 姓名输入框（必填） -->
-                <div class="form-group">
-                    <label for="realName">姓名 *</label>
-                    <input type="text" id="realName" placeholder="请输入姓名" required>
-                </div>
-
-                <!-- 身份证号输入框 -->
-                <div class="form-group">
-                    <label for="idNumber">身份证号</label>
-                    <input type="text" id="idNumber" placeholder="请输入身份证号">
-                </div>
-
-                <!-- 银行账号输入框 -->
-                <div class="form-group">
-                    <label for="bankAccount">银行账号</label>
-                    <input type="text" id="bankAccount" placeholder="请输入银行账号">
-                </div>
-
-                <!-- 银行地址输入框 -->
-                <div class="form-group">
-                    <label for="bankAddress">银行地址</label>
-                    <input type="text" id="bankAddress" placeholder="请输入银行地址">
-                </div>
-
-                <!-- 电话号码输入框 -->
-                <div class="form-group">
-                    <label for="phone">电话号码</label>
-                    <input type="text" id="phone" placeholder="请输入电话号码">
-                </div>
-
-                <!-- 表单操作按钮 -->
-                <div class="form-buttons">
-                    <button class="btn btn-primary" onclick="saveEmployee()">保存</button>
-                    <button class="btn btn-success" onclick="clearForm()">清空表单</button>
-                </div>
-
-                <!-- 已有人员列表（点击可编辑） -->
-                <h4 style="margin: 30px 0 15px; color: #333;">已有人员列表（点击可编辑）</h4>
-                <div class="employee-list" id="employeeList">
-                    <div class="empty-state">加载中...</div>
-                </div>
-                <div class="pagination" id="employeePagination"></div>
-            </div>
-        </div>
-
-        <!-- ==================== 导出面板 ==================== -->
-        <!-- 功能：将员工信息导出为Excel文件 -->
-        <div class="panel" id="export">
-            <!-- 方式一：匹配input.xlsx文件导出 -->
-            <div class="export-section">
-                <div class="export-icon">📋</div>
-                <h2>导出员工信息汇总表</h2>
-                <p>将input.xlsx中的姓名与数据库中的信息进行匹配，生成完整的员工信息汇总表</p>
-                <button class="btn btn-success" onclick="exportExcel()">导出Excel</button>
-                <!-- 导出消息提示区域 -->
-                <div id="exportMessage"></div>
-            </div>
-
-            <!-- 分隔线 -->
-            <div class="divider"><span>或</span></div>
-
-            <!-- 方式二：手动输入姓名导出 -->
-            <div class="manual-export-section">
-                <h3>📝 手动输入姓名导出</h3>
-                <p>直接在下方输入姓名，按回车添加，可添加多个姓名，添加完成后点击"导出选定人员"</p>
-
-                <!-- 姓名输入区域 -->
-                <div class="name-input-box">
-                    <input type="text" id="manualNameInput" placeholder="输入姓名后按回车添加..." onkeypress="handleNameInput(event)">
-                    <button class="btn btn-primary" onclick="addName()">添加</button>
-                </div>
-
-                <!-- 已添加姓名标签展示区域 -->
-                <div class="name-list" id="nameList">
-                    <!-- 添加的姓名会显示在这里 -->
-                </div>
-
-                <!-- 导出按钮 -->
-                <button class="btn btn-success" onclick="exportManualExcel()">导出选定人员 (shuchu.xlsx)</button>
-                <!-- 导出消息提示区域 -->
-                <div id="manualExportMessage"></div>
-            </div>
-
-            <!-- input.xlsx文件预览区域 -->
-            <div style="margin-top: 30px;">
-                <h4 style="margin-bottom: 15px; color: #333;">input.xlsx 预览</h4>
-                <div class="table-container" id="inputPreview">
-                    <div class="empty-state">加载中...</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ==================== 导入面板 ==================== -->
-        <!-- 功能：上传 Excel 批量导入员工信息，先预览校验报告再确认写入 -->
-        <div class="panel" id="import">
-            <div class="export-section">
-                <div class="export-icon">📥</div>
-                <h2>批量导入员工信息</h2>
-                <p>上传 .xlsx 文件，自动识别中英文表头（姓名/real_name 等）。<br>
-                先解析并生成校验报告，确认无误后再写入数据库，已有姓名自动更新、已删除同名自动恢复。</p>
-                <!-- 文件选择与上传预览 -->
-                <div class="upload-box">
-                    <input type="file" id="importFile" accept=".xlsx">
-                    <button class="btn btn-primary" onclick="previewImport()">上传并预览</button>
-                </div>
-                <!-- 导入消息提示区域 -->
-                <div id="importMessage"></div>
-            </div>
-
-            <!-- 校验报告区域（预览成功后显示） -->
-            <div id="importReport" style="display: none;">
-                <!-- 分类统计徽章 -->
-                <div class="import-summary" id="importSummary"></div>
-                <!-- 逐行校验报告表格 -->
-                <div class="table-container" id="importTable"></div>
-                <!-- 确认导入按钮 -->
-                <div style="text-align: center; margin-top: 25px;">
-                    <button class="btn btn-success" id="confirmImportBtn" onclick="confirmImport()">确认导入</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- ==================== 操作日志面板（仅管理员可见） ==================== -->
-        <!-- 功能：按类别/日期/级别/关键词查询系统操作日志 -->
-        <div class="panel" id="logs">
-            <!-- 日志分类切换：系统日志 / 数据库改动日志 -->
-            <div class="logs-category">
-                <button class="log-cat-btn active" data-category="system" onclick="switchLogCategory('system')">🖥️ 系统日志</button>
-                <button class="log-cat-btn" data-category="db" onclick="switchLogCategory('db')">🗄️ 数据库改动</button>
-            </div>
-            <!-- 工具栏：日期、级别、关键词、刷新 -->
-            <div class="logs-toolbar">
-                <select id="logDateSelect" class="log-select" onchange="onLogFilterChange()"></select>
-                <select id="logLevelSelect" class="log-select" onchange="onLogFilterChange()">
-                    <option value="">全部级别</option>
-                    <option value="INFO">INFO</option>
-                    <option value="WARNING">WARNING</option>
-                    <option value="ERROR">ERROR</option>
-                    <option value="DEBUG">DEBUG</option>
-                </select>
-                <input type="text" id="logKeyword" class="log-search" placeholder="搜索日志内容（如：姓名、操作关键词）...">
-                <button class="btn btn-primary" onclick="loadLogs()">🔄 刷新</button>
-            </div>
-            <!-- 级别统计徽章 -->
-            <div class="logs-stats" id="logsStats"></div>
-            <!-- 日志列表 -->
-            <div class="logs-list" id="logsList">
-                <div class="empty-state">加载中...</div>
-            </div>
-            <!-- 分页控件 -->
-            <div class="logs-pagination" id="logsPagination"></div>
+            <a href="/admin" class="btn-topbar" id="adminBtn">管理后台</a>
+            <a href="/recycle-bin" class="btn-topbar">回收站</a>
+            <button class="btn-topbar" onclick="logout()">退出</button>
         </div>
     </div>
-    <!-- ==================== 主容器结束 ==================== -->
 
-    <!-- ==================== JavaScript代码 ==================== -->
+    <!-- Tabs -->
+    <div class="tabs-bar">
+        <button class="tab active" data-panel="search">查询</button>
+        <button class="tab" data-panel="entry">录入 / 更新</button>
+        <button class="tab" data-panel="export">导出 Excel</button>
+        <button class="tab" data-panel="importTab">导入 Excel</button>
+        <button class="tab" id="logsTab" data-panel="logs">操作日志</button>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+        <!-- Search Panel -->
+        <div id="search" class="panel active">
+            <div class="card">
+                <div class="card-body">
+                    <div class="search-row">
+                        <input type="text" id="searchInput" class="search-input"
+                               placeholder="输入姓名或拼音首字母搜索...">
+                        <button class="btn btn-primary" onclick="searchEmployee()">搜索</button>
+                    </div>
+                    <div id="searchResults">
+                        <div class="empty-state">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="M21 21l-4.35-4.35"></path>
+                            </svg>
+                            <p>输入关键词开始搜索</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Entry Panel -->
+        <div id="entry" class="panel">
+            <div class="card">
+                <div class="card-header">录入 / 更新员工信息</div>
+                <div class="card-body">
+                    <div id="entryMessage"></div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>姓名 <span style="color:#dc2626">*</span></label>
+                            <input type="text" id="realName" placeholder="请输入姓名">
+                        </div>
+                        <div class="form-group">
+                            <label>身份证号</label>
+                            <input type="text" id="idNumber" placeholder="请输入身份证号">
+                        </div>
+                        <div class="form-group">
+                            <label>银行账号</label>
+                            <input type="text" id="bankAccount" placeholder="请输入银行账号">
+                        </div>
+                        <div class="form-group">
+                            <label>银行地址</label>
+                            <input type="text" id="bankAddress" placeholder="请输入开户行">
+                        </div>
+                        <div class="form-group">
+                            <label>电话</label>
+                            <input type="text" id="phone" placeholder="请输入电话号码">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-primary" onclick="saveEmployee()">保存</button>
+                        <button class="btn btn-outline" onclick="clearForm()">清空</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">员工列表</div>
+                <div class="card-body" style="padding:0">
+                    <div id="employeeList">
+                        <div class="empty-state"><p>加载中...</p></div>
+                    </div>
+                    <div id="employeePagination" class="pagination" style="padding:12px 16px"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Panel -->
+        <div id="export" class="panel">
+            <div class="card">
+                <div class="card-header">文件匹配导出</div>
+                <div class="card-body">
+                    <p style="font-size:0.8125rem;color:#64748b;margin-bottom:16px">
+                        系统将读取 input.xlsx 中的姓名，与数据库匹配后生成完整信息表。
+                    </p>
+                    <div id="exportMessage"></div>
+                    <button class="btn btn-primary" onclick="exportExcel()">导出 Excel</button>
+                    <div style="margin-top:20px">
+                        <div class="section-title">input.xlsx 预览</div>
+                        <div id="inputPreview">
+                            <div class="empty-state"><p>切换到此标签页后自动加载</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">手动输入导出</div>
+                <div class="card-body">
+                    <div id="manualExportMessage"></div>
+                    <div class="search-row">
+                        <input type="text" id="manualNameInput" class="search-input"
+                               placeholder="输入姓名后按回车添加..." onkeypress="handleNameInput(event)">
+                        <button class="btn btn-outline" onclick="addName()">添加</button>
+                        <button class="btn btn-success" onclick="exportManualExcel()">导出</button>
+                    </div>
+                    <div id="nameList" class="name-tags">
+                        <span style="color:#94a3b8;font-size:0.8125rem">暂无添加的姓名</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Panel -->
+        <div id="importTab" class="panel">
+            <div class="card">
+                <div class="card-header">导入 Excel</div>
+                <div class="card-body">
+                    <div id="importMessage"></div>
+                    <div class="upload-area" onclick="document.getElementById('importFile').click()">
+                        <div class="icon">&#128196;</div>
+                        <p>点击选择 Excel 文件</p>
+                        <input type="file" id="importFile" accept=".xlsx,.xls">
+                    </div>
+                    <div style="margin-top:12px;display:flex;gap:10px">
+                        <button class="btn btn-primary" onclick="previewImport()">解析预览</button>
+                    </div>
+                    <div id="importReport" style="display:none;margin-top:20px">
+                        <div class="section-title">校验报告</div>
+                        <div id="importSummary" class="summary-row"></div>
+                        <div id="importTable"></div>
+                        <div style="margin-top:16px">
+                            <button class="btn btn-success" id="confirmImportBtn" onclick="confirmImport()" disabled>
+                                确认导入
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Panel -->
+        <div id="logs" class="panel">
+            <div class="card">
+                <div class="card-header">操作日志</div>
+                <div class="card-body">
+                    <div class="log-cat-btns" style="margin-bottom:16px">
+                        <button class="log-cat-btn active" data-category="system" onclick="switchLogCategory('system')">系统日志</button>
+                        <button class="log-cat-btn" data-category="db" onclick="switchLogCategory('db')">数据库日志</button>
+                    </div>
+                    <div class="log-filters">
+                        <select id="logDateSelect" onchange="onLogFilterChange()"></select>
+                        <select id="logLevelSelect" onchange="onLogFilterChange()">
+                            <option value="">全部级别</option>
+                            <option value="INFO">INFO</option>
+                            <option value="WARNING">WARNING</option>
+                            <option value="ERROR">ERROR</option>
+                        </select>
+                        <input type="text" id="logKeyword" placeholder="搜索关键词...">
+                    </div>
+                    <div id="logsStats" class="log-stat-badges"></div>
+                    <div id="logsList" class="log-list">
+                        <div class="empty-state"><p>加载中...</p></div>
+                    </div>
+                    <div id="logsPagination" class="pagination"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
     <script>
-        /* ***********************************************************
-         * 系统初始化模块
-         * 页面加载时检查登录状态并初始化界面
-         * *********************************************************** */
-
-        /**
-         * 检查用户登录状态
-         * @description 向服务器发送请求验证当前用户的登录状态
-         *              如果未登录则跳转到登录页面
-         *              如果已登录则显示用户名和管理员权限
-         * @returns {Promise<void>} 无返回值
-         */
+        /* ===== 系统初始化 ===== */
         async function checkLoginStatus() {
             try {
-                const response = await fetch('/api/check-login');
-                const result = await response.json();
-                
-                // 未登录则跳转到登录页面
-                if (!result.logged_in) {
-                    window.location.href = '/login';
-                    return;
-                }
-                
-                // 显示当前用户名
-                document.getElementById('currentUsername').textContent = result.username;
-                
-                // 如果是管理员，显示管理后台按钮和操作日志标签
-                if (result.is_admin) {
+                const r = await fetch('/api/check-login');
+                const d = await r.json();
+                if (!d.logged_in) { window.location.href = '/login'; return; }
+                document.getElementById('currentUsername').textContent = d.username;
+                if (d.is_admin) {
                     document.getElementById('adminBtn').style.display = 'inline-block';
                     document.getElementById('logsTab').style.display = 'inline-block';
                 }
-            } catch (error) {
-                // 请求失败则跳转到登录页面
-                window.location.href = '/login';
-            }
+            } catch (e) { window.location.href = '/login'; }
         }
-
-        /**
-         * 用户退出登录
-         * @description 向服务器发送登出请求，然后跳转到登录页面
-         * @returns {Promise<void>} 无返回值
-         */
         async function logout() {
-            try {
-                await fetch('/api/logout', {method: 'POST'});
-                window.location.href = '/login';
-            } catch (error) {
-                window.location.href = '/login';
-            }
+            try { await fetch('/api/logout', {method:'POST'}); } catch(e) {}
+            window.location.href = '/login';
         }
-
-        // 页面加载时检查登录状态
         checkLoginStatus();
 
-        /* ***********************************************************
-         * 标签页切换模块
-         * 实现三个功能面板之间的切换
-         * *********************************************************** */
-
-        // 为每个标签绑定点击事件
+        /* ===== Tab 切换 ===== */
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
-                // 移除所有标签和面板的active状态
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-
-                // 为当前点击的标签和对应面板添加active状态
                 tab.classList.add('active');
                 document.getElementById(tab.dataset.panel).classList.add('active');
-
-                // 根据切换到面板加载对应数据
-                if (tab.dataset.panel === 'entry') {
-                    loadEmployeeList();
-                } else if (tab.dataset.panel === 'export') {
-                    loadInputPreview();
-                } else if (tab.dataset.panel === 'logs') {
-                    loadLogs();
-                }
+                if (tab.dataset.panel === 'entry') loadEmployeeList();
+                else if (tab.dataset.panel === 'export') loadInputPreview();
+                else if (tab.dataset.panel === 'logs') loadLogs();
             });
         });
 
-        /* ***********************************************************
-         * 搜索功能模块
-         * 实现员工信息的搜索和结果展示
-         * *********************************************************** */
+        /* ===== Toast 通知 ===== */
+        function toast(msg, type) {
+            const c = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            t.className = 'toast ' + (type||'info');
+            t.textContent = msg;
+            c.appendChild(t);
+            setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity 0.3s'; setTimeout(()=>t.remove(),300); }, 3000);
+        }
+        function showMessage(elId, text, type) {
+            const el = document.getElementById(elId);
+            el.innerHTML = '<div class="message '+type+'">'+text+'</div>';
+            setTimeout(()=>{ el.innerHTML=''; }, 3000);
+        }
 
-        /**
-         * 搜索员工信息
-         * @description 根据输入的姓名或拼音首字母搜索员工信息
-         *              成功后在页面上展示搜索结果
-         * @returns {Promise<void>} 无返回值
-         */
+        /* ===== 搜索 ===== */
         async function searchEmployee() {
             const name = document.getElementById('searchInput').value.trim();
-            
-            // 验证输入
-            if (!name) {
-                showMessage('searchResults', '请输入搜索关键词', 'error');
-                return;
-            }
-
+            if (!name) { toast('请输入搜索关键词','error'); return; }
             try {
-                // 发送搜索请求
-                const response = await fetch(`/api/search?name=${encodeURIComponent(name)}`);
-                const result = await response.json();
-
-                if (result.success) {
-                    displaySearchResults(result.data);
-                } else {
-                    showMessage('searchResults', result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('searchResults', '搜索失败: ' + error.message, 'error');
-            }
+                const r = await fetch('/api/search?name='+encodeURIComponent(name));
+                const d = await r.json();
+                if (d.success) displaySearchResults(d.data);
+                else document.getElementById('searchResults').innerHTML = '<div class="empty-state"><p>'+d.message+'</p></div>';
+            } catch (e) { toast('搜索失败: '+e.message,'error'); }
         }
-
-        /**
-         * 展示搜索结果
-         * @description 将搜索结果以表格形式展示在页面上
-         * @param {Array<Object>} data - 搜索结果数组，每个元素包含员工信息
-         * @param {string} data[].real_name - 员工姓名
-         * @param {string} data[].id_number - 身份证号
-         * @param {string} data[].bank_account - 银行账号
-         * @param {string} data[].bank_address - 银行地址
-         * @param {string} data[].phone - 电话号码
-         * @returns {void} 无返回值
-         */
         function displaySearchResults(data) {
-            const container = document.getElementById('searchResults');
-
-            // 无结果时显示空状态
-            if (!data || data.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <path d="M21 21l-4.35-4.35"></path>
-                        </svg>
-                        <p>未找到匹配的记录</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // 构建结果表格HTML
-            let html = `
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>姓名</th>
-                                <th>身份证号</th>
-                                <th>银行账号</th>
-                                <th>银行地址</th>
-                                <th>电话</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            // 遍历数据生成表格行
-            data.forEach(item => {
-                html += `
-                    <tr>
-                        <td><strong>${item.real_name}</strong></td>
-                        <td>${item.id_number || '-'}</td>
-                        <td>${item.bank_account || '-'}</td>
-                        <td>${item.bank_address || '-'}</td>
-                        <td>${item.phone || '-'}</td>
-                    </tr>
-                `;
-            });
-
-            html += '</tbody></table></div>';
-            container.innerHTML = html;
+            const c = document.getElementById('searchResults');
+            if (!data || !data.length) { c.innerHTML = '<div class="empty-state"><p>未找到匹配记录</p></div>'; return; }
+            let h = '<div class="table-wrap"><table><thead><tr><th>姓名</th><th>身份证号</th><th>银行账号</th><th>银行地址</th><th>电话</th></tr></thead><tbody>';
+            data.forEach(i => { h += '<tr><td><strong>'+i.real_name+'</strong></td><td>'+(i.id_number||'-')+'</td><td>'+(i.bank_account||'-')+'</td><td>'+(i.bank_address||'-')+'</td><td>'+(i.phone||'-')+'</td></tr>'; });
+            h += '</tbody></table></div>';
+            c.innerHTML = h;
         }
+        document.getElementById('searchInput').addEventListener('keypress', e => { if (e.key==='Enter') searchEmployee(); });
 
-        // 为搜索输入框绑定回车事件
-        document.getElementById('searchInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                searchEmployee();
-            }
-        });
-
-        /* ***********************************************************
-         * 员工管理模块
-         * 实现员工列表加载、编辑、保存、删除功能
-         * *********************************************************** */
-
-        /**
-         * 加载员工列表
-         * @description 从服务器获取所有员工信息并展示在列表中
-         *              每个员工项包含编辑和删除按钮
-         * @returns {Promise<void>} 无返回值
-         */
+        /* ===== 员工管理 ===== */
         let empCurrentPage = 1;
         const empPageSize = 20;
-
         async function loadEmployeeList(page) {
             if (page !== undefined) empCurrentPage = page;
             try {
-                const response = await fetch(`/api/employees?page=${empCurrentPage}&page_size=${empPageSize}`);
-                const result = await response.json();
-
-                const container = document.getElementById('employeeList');
-                const paginationEl = document.getElementById('employeePagination');
-
-                if (result.success && result.data.length > 0) {
-                    let html = '';
-                    result.data.forEach(item => {
-                        html += `
-                            <div class="employee-item">
-                                <div>
-                                    <div class="name">${item.real_name}</div>
-                                    <div class="phone">${item.phone || '无电话'}</div>
-                                </div>
-                                <div class="actions">
-                                    <button class="btn btn-primary btn-sm" onclick="editEmployee('${item.real_name}', '${item.id_number || ''}', '${item.bank_account || ''}', '${item.bank_address || ''}', '${item.phone || ''}')">编辑</button>
-                                    <button class="btn btn-danger btn-sm" onclick="deleteEmployee('${item.real_name}')">删除</button>
-                                </div>
-                            </div>
-                        `;
+                const r = await fetch('/api/employees?page='+empCurrentPage+'&page_size='+empPageSize);
+                const d = await r.json();
+                const c = document.getElementById('employeeList');
+                const pg = document.getElementById('employeePagination');
+                if (d.success && d.data.length > 0) {
+                    let h = '';
+                    d.data.forEach(i => {
+                        h += '<div class="emp-item"><div><div class="emp-name">'+i.real_name+'</div><div class="emp-phone">'+(i.phone||'无电话')+'</div></div><div class="emp-actions"><button class="btn btn-primary btn-sm" onclick="editEmployee(\''+i.real_name+'\',\''+(i.id_number||'')+'\',\''+(i.bank_account||'')+'\',\''+(i.bank_address||'')+'\',\''+(i.phone||'')+'\')">编辑</button><button class="btn btn-danger btn-sm" onclick="deleteEmployee(\''+i.real_name+'\')">删除</button></div></div>';
                     });
-                    container.innerHTML = html;
-                    renderPagination(paginationEl, result.page, result.pages, result.total, loadEmployeeList);
+                    c.innerHTML = h;
+                    renderPagination(pg, d.page, d.pages, d.total, loadEmployeeList);
                 } else {
-                    container.innerHTML = '<div class="empty-state">暂无员工数据</div>';
-                    paginationEl.innerHTML = '';
+                    c.innerHTML = '<div class="empty-state"><p>暂无员工数据</p></div>';
+                    pg.innerHTML = '';
                 }
-            } catch (error) {
-                document.getElementById('employeeList').innerHTML = '<div class="empty-state">加载失败</div>';
-            }
+            } catch (e) { document.getElementById('employeeList').innerHTML = '<div class="empty-state"><p>加载失败</p></div>'; }
         }
-
-        function renderPagination(el, current, total, totalCount, callback) {
+        function renderPagination(el, cur, total, count, cb) {
             if (total <= 1) { el.innerHTML = ''; return; }
-            let html = '<button ' + (current <= 1 ? 'disabled' : '') + ' data-page="' + (current - 1) + '">上一页</button>';
-            html += '<span class="page-info">第 ' + current + ' / ' + total + ' 页，共 ' + totalCount + ' 条</span>';
-            html += '<button ' + (current >= total ? 'disabled' : '') + ' data-page="' + (current + 1) + '">下一页</button>';
-            el.innerHTML = html;
-            el.querySelectorAll('button').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const p = parseInt(this.dataset.page);
-                    if (!isNaN(p)) callback(p);
-                });
-            });
+            let h = '<button '+(cur<=1?'disabled':'')+' data-page="'+(cur-1)+'">上一页</button>';
+            h += '<span class="page-info">第 '+cur+' / '+total+' 页，共 '+count+' 条</span>';
+            h += '<button '+(cur>=total?'disabled':'')+' data-page="'+(cur+1)+'">下一页</button>';
+            el.innerHTML = h;
+            el.querySelectorAll('button').forEach(b => { b.addEventListener('click', function(){ const p=parseInt(this.dataset.page); if(!isNaN(p)) cb(p); }); });
         }
-
-        /**
-         * 编辑员工信息
-         * @description 将选中员工的信息填充到表单中，以便修改
-         * @param {string} realName - 员工姓名
-         * @param {string} idNumber - 身份证号
-         * @param {string} bankAccount - 银行账号
-         * @param {string} bankAddress - 银行地址
-         * @param {string} phone - 电话号码
-         * @returns {void} 无返回值
-         */
-        function editEmployee(realName, idNumber, bankAccount, bankAddress, phone) {
-            document.getElementById('realName').value = realName;
-            document.getElementById('idNumber').value = idNumber;
-            document.getElementById('bankAccount').value = bankAccount;
-            document.getElementById('bankAddress').value = bankAddress;
-            document.getElementById('phone').value = phone;
-
-            // 聚焦到姓名输入框
+        function editEmployee(n,id,bank,addr,phone) {
+            document.getElementById('realName').value=n;
+            document.getElementById('idNumber').value=id;
+            document.getElementById('bankAccount').value=bank;
+            document.getElementById('bankAddress').value=addr;
+            document.getElementById('phone').value=phone;
             document.getElementById('realName').focus();
         }
-
-        /**
-         * 保存员工信息
-         * @description 将表单中的员工信息提交到服务器保存
-         *              如果姓名已存在则更新，否则新增
-         * @returns {Promise<void>} 无返回值
-         */
         async function saveEmployee() {
-            // 收集表单数据
             const data = {
                 real_name: document.getElementById('realName').value.trim(),
                 id_number: document.getElementById('idNumber').value.trim(),
@@ -1348,606 +584,182 @@
                 bank_address: document.getElementById('bankAddress').value.trim(),
                 phone: document.getElementById('phone').value.trim()
             };
-
-            // 验证必填字段
-            if (!data.real_name) {
-                showMessage('entryMessage', '姓名为必填项', 'error');
-                return;
-            }
-
+            if (!data.real_name) { showMessage('entryMessage','姓名为必填项','error'); return; }
             try {
-                // 发送保存请求
-                const response = await fetch('/api/employee', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showMessage('entryMessage', result.message, 'success');
-                    loadEmployeeList();
-                    clearForm();
-                } else {
-                    showMessage('entryMessage', result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('entryMessage', '保存失败: ' + error.message, 'error');
-            }
+                const r = await fetch('/api/employee', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+                const d = await r.json();
+                if (d.success) { showMessage('entryMessage',d.message,'success'); loadEmployeeList(); clearForm(); toast(d.message,'success'); }
+                else showMessage('entryMessage',d.message,'error');
+            } catch (e) { showMessage('entryMessage','保存失败: '+e.message,'error'); }
         }
-
-        /**
-         * 删除员工信息
-         * @description 从数据库中删除指定员工的所有信息
-         *              删除前会弹出确认对话框
-         * @param {string} name - 要删除的员工姓名
-         * @returns {Promise<void>} 无返回值
-         */
         async function deleteEmployee(name) {
-            // 确认删除操作（软删除，可在回收站恢复）
-            if (!confirm(`确定要删除 "${name}" 吗？\n删除后记录会进入回收站，可随时恢复。`)) {
-                return;
-            }
-
+            if (!confirm('确定要删除 "'+name+'" 吗？\n删除后记录会进入回收站，可随时恢复。')) return;
             try {
-                // 发送删除请求
-                const response = await fetch(`/api/employee/${encodeURIComponent(name)}`, {
-                    method: 'DELETE'
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showMessage('entryMessage', result.message, 'success');
-                    loadEmployeeList();
-                } else {
-                    showMessage('entryMessage', result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('entryMessage', '删除失败: ' + error.message, 'error');
-            }
+                const r = await fetch('/api/employee/'+encodeURIComponent(name), {method:'DELETE'});
+                const d = await r.json();
+                if (d.success) { showMessage('entryMessage',d.message,'success'); loadEmployeeList(); toast(d.message,'success'); }
+                else showMessage('entryMessage',d.message,'error');
+            } catch (e) { showMessage('entryMessage','删除失败: '+e.message,'error'); }
         }
-
-        /**
-         * 清空表单
-         * @description 清空录入表单中的所有输入内容
-         * @returns {void} 无返回值
-         */
         function clearForm() {
-            document.getElementById('realName').value = '';
-            document.getElementById('idNumber').value = '';
-            document.getElementById('bankAccount').value = '';
-            document.getElementById('bankAddress').value = '';
-            document.getElementById('phone').value = '';
+            ['realName','idNumber','bankAccount','bankAddress','phone'].forEach(id => document.getElementById(id).value='');
         }
 
-        /* ***********************************************************
-         * Excel导出模块
-         * 实现员工信息的Excel导出功能
-         * *********************************************************** */
-
-        /**
-         * 导出Excel文件
-         * @description 将input.xlsx中的姓名与数据库匹配后导出完整的员工信息表
-         *              导出成功后自动触发文件下载
-         * @returns {Promise<void>} 无返回值
-         */
+        /* ===== Excel 导出 ===== */
         async function exportExcel() {
             try {
-                const response = await fetch('/api/export', {
-                    method: 'POST'
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showMessage('exportMessage', '导出成功！准备下载...', 'success');
-                    // 延迟触发下载
-                    setTimeout(() => {
-                        window.location.href = '/api/download/output.xlsx';
-                    }, 1000);
-                } else {
-                    showMessage('exportMessage', result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('exportMessage', '导出失败: ' + error.message, 'error');
-            }
+                const r = await fetch('/api/export', {method:'POST'});
+                const d = await r.json();
+                if (d.success) { showMessage('exportMessage','导出成功！准备下载...','success'); setTimeout(()=>{ window.location.href='/api/download/output.xlsx'; },1000); }
+                else showMessage('exportMessage',d.message,'error');
+            } catch (e) { showMessage('exportMessage','导出失败: '+e.message,'error'); }
         }
-
-        /**
-         * 加载input.xlsx预览
-         * @description 从服务器获取input.xlsx文件内容并展示预览
-         * @returns {Promise<void>} 无返回值
-         */
         async function loadInputPreview() {
             try {
-                const response = await fetch('/api/input-preview');
-                const result = await response.json();
-
-                const container = document.getElementById('inputPreview');
-
-                if (result.success) {
-                    // 构建预览表格
-                    let html = `
-                        <table>
-                            <thead>
-                                <tr>
-                                    ${result.columns.map(col => `<th>${col}</th>`).join('')}
-                                </tr>
-                            </thead>
-                            <tbody>
-                    `;
-
-                    // 遍历每一行数据
-                    result.data.forEach(row => {
-                        html += '<tr>';
-                        result.columns.forEach(col => {
-                            html += `<td>${row[col] || ''}</td>`;
-                        });
-                        html += '</tr>';
-                    });
-
-                    html += '</tbody></table>';
-                    container.innerHTML = html;
-                } else {
-                    container.innerHTML = `<div class="empty-state">${result.message}</div>`;
-                }
-            } catch (error) {
-                document.getElementById('inputPreview').innerHTML = '<div class="empty-state">加载失败</div>';
-            }
+                const r = await fetch('/api/input-preview');
+                const d = await r.json();
+                const c = document.getElementById('inputPreview');
+                if (d.success) {
+                    let h = '<div class="table-wrap"><table><thead><tr>'+d.columns.map(col=>'<th>'+col+'</th>').join('')+'</tr></thead><tbody>';
+                    d.data.forEach(row => { h += '<tr>'; d.columns.forEach(col => { h += '<td>'+(row[col]||'')+'</td>'; }); h += '</tr>'; });
+                    h += '</tbody></table></div>';
+                    c.innerHTML = h;
+                } else c.innerHTML = '<div class="empty-state"><p>'+d.message+'</p></div>';
+            } catch (e) { document.getElementById('inputPreview').innerHTML = '<div class="empty-state"><p>加载失败</p></div>'; }
         }
 
-        /* ***********************************************************
-         * 工具函数模块
-         * 提供消息显示等通用功能
-         * *********************************************************** */
-
-        /**
-         * 显示消息提示
-         * @description 在指定位置显示操作结果消息，3秒后自动消失
-         * @param {string} elementId - 要显示消息的元素ID
-         * @param {string} text - 消息文本内容
-         * @param {string} type - 消息类型：'success'成功、'error'错误、'info'信息
-         * @returns {void} 无返回值
-         */
-        function showMessage(elementId, text, type) {
-            const container = document.getElementById(elementId);
-            container.innerHTML = `<div class="message ${type}">${text}</div>`;
-
-            // 3秒后清除消息
-            setTimeout(() => {
-                container.innerHTML = '';
-            }, 3000);
-        }
-
-        /* ***********************************************************
-         * 手动输入导出模块
-         * 实现手动输入姓名并导出选定人员的功能
-         * *********************************************************** */
-
-        /** @type {string[]} 已添加的姓名列表 */
+        /* ===== 手动导出 ===== */
         let nameList = [];
-
-        /**
-         * 处理姓名输入键盘事件
-         * @description 监听回车键，按回车时添加输入的姓名
-         * @param {KeyboardEvent} event - 键盘事件对象
-         * @returns {void} 无返回值
-         */
-        function handleNameInput(event) {
-            if (event.key === 'Enter') {
-                addName();
-            }
-        }
-
-        /**
-         * 添加姓名到列表
-         * @description 将输入框中的姓名添加到导出列表中
-         *              自动去重，添加成功后清空输入框并刷新显示
-         * @returns {void} 无返回值
-         */
+        function handleNameInput(e) { if (e.key==='Enter') addName(); }
         function addName() {
             const input = document.getElementById('manualNameInput');
             const name = input.value.trim();
-
-            // 空值不处理
             if (!name) return;
-
-            // 检查重复
-            if (nameList.includes(name)) {
-                showMessage('manualExportMessage', '该姓名已添加', 'error');
-                return;
-            }
-
-            // 添加到列表并刷新显示
-            nameList.push(name);
-            input.value = '';
-            renderNameList();
+            if (nameList.includes(name)) { showMessage('manualExportMessage','该姓名已添加','error'); return; }
+            nameList.push(name); input.value=''; renderNameList();
         }
-
-        /**
-         * 从列表中移除姓名
-         * @description 从导出列表中删除指定的姓名
-         * @param {string} name - 要移除的姓名
-         * @returns {void} 无返回值
-         */
-        function removeName(name) {
-            nameList = nameList.filter(n => n !== name);
-            renderNameList();
-        }
-
-        /**
-         * 渲染姓名列表
-         * @description 将已添加的姓名以标签形式展示在页面上
-         *              每个标签带有删除按钮
-         * @returns {void} 无返回值
-         */
+        function removeName(name) { nameList = nameList.filter(n=>n!==name); renderNameList(); }
         function renderNameList() {
-            const container = document.getElementById('nameList');
-
-            if (nameList.length === 0) {
-                container.innerHTML = '<span style="color: #999;">暂无添加的姓名</span>';
-                return;
-            }
-
-            let html = '';
-            nameList.forEach(name => {
-                html += `<span class="name-tag">${name} <span class="remove" onclick="removeName('${name}')">&times;</span></span>`;
-            });
-            container.innerHTML = html;
+            const c = document.getElementById('nameList');
+            if (!nameList.length) { c.innerHTML = '<span style="color:#94a3b8;font-size:0.8125rem">暂无添加的姓名</span>'; return; }
+            c.innerHTML = nameList.map(n => '<span class="name-tag">'+n+' <span class="remove" onclick="removeName(\''+n+'\')">&times;</span></span>').join('');
         }
-
-        /**
-         * 导出选定人员的Excel文件
-         * @description 根据手动添加的姓名列表，从数据库中查找对应信息并导出
-         *              导出成功后自动触发文件下载(shuchu.xlsx)
-         * @returns {Promise<void>} 无返回值
-         */
         async function exportManualExcel() {
-            // 检查是否有选定的姓名
-            if (nameList.length === 0) {
-                showMessage('manualExportMessage', '请先添加姓名', 'error');
-                return;
-            }
-
+            if (!nameList.length) { showMessage('manualExportMessage','请先添加姓名','error'); return; }
             try {
-                // 发送导出请求
-                const response = await fetch('/api/export-manual', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({names: nameList})
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showMessage('manualExportMessage', '导出成功！准备下载...', 'success');
-                    // 延迟触发下载
-                    setTimeout(() => {
-                        window.location.href = '/api/download/shuchu.xlsx';
-                    }, 1000);
-                } else {
-                    showMessage('manualExportMessage', result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('manualExportMessage', '导出失败: ' + error.message, 'error');
-            }
+                const r = await fetch('/api/export-manual', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({names:nameList})});
+                const d = await r.json();
+                if (d.success) { showMessage('manualExportMessage','导出成功！准备下载...','success'); setTimeout(()=>{ window.location.href='/api/download/shuchu.xlsx'; },1000); }
+                else showMessage('manualExportMessage',d.message,'error');
+            } catch (e) { showMessage('manualExportMessage','导出失败: '+e.message,'error'); }
         }
 
-        /* ***********************************************************
-         * Excel 上传导入模块
-         * 上传文件 -> 预览校验报告 -> 确认导入
-         * *********************************************************** */
-
-        /** @type {Array<Object>} 预览解析出的行数据（含服务端分类状态） */
+        /* ===== Excel 导入 ===== */
         let importRows = [];
-
-        /** 状态码对应的中文标签 */
-        const STATUS_LABELS = {new: '新增', update: '更新', restore: '恢复', error: '错误'};
-
-        /**
-         * 上传 Excel 并请求校验预览
-         * @description 将文件提交到 /api/import-preview，成功则渲染校验报告
-         * @returns {Promise<void>} 无返回值
-         */
+        const STATUS_LABELS = {new:'新增',update:'更新',restore:'恢复',error:'错误'};
         async function previewImport() {
             const input = document.getElementById('importFile');
-
-            if (!input.files.length) {
-                showMessage('importMessage', '请先选择 Excel 文件', 'error');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('file', input.files[0]);
-
+            if (!input.files.length) { showMessage('importMessage','请先选择 Excel 文件','error'); return; }
+            const fd = new FormData(); fd.append('file', input.files[0]);
             try {
-                const response = await fetch('/api/import-preview', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    importRows = result.rows;
-                    renderImportReport(result.rows, result.summary);
-                    showMessage('importMessage', '解析完成，请核对校验报告后确认导入', 'info');
-                } else {
-                    importRows = [];
-                    document.getElementById('importReport').style.display = 'none';
-                    showMessage('importMessage', result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('importMessage', '上传失败: ' + error.message, 'error');
-            }
+                const r = await fetch('/api/import-preview', {method:'POST', body:fd});
+                const d = await r.json();
+                if (d.success) { importRows = d.rows; renderImportReport(d.rows, d.summary); showMessage('importMessage','解析完成，请核对后确认导入','info'); }
+                else { importRows=[]; document.getElementById('importReport').style.display='none'; showMessage('importMessage',d.message,'error'); }
+            } catch (e) { showMessage('importMessage','上传失败: '+e.message,'error'); }
         }
-
-        /**
-         * 渲染校验报告（汇总徽章 + 逐行表格）
-         * @param {Array<Object>} rows - 解析出的行数据
-         * @param {Object} summary - 分类统计 {total, new, update, restore, error}
-         * @returns {void} 无返回值
-         */
         function renderImportReport(rows, summary) {
-            document.getElementById('importReport').style.display = 'block';
-
-            // 汇总徽章
-            document.getElementById('importSummary').innerHTML = `
-                <span class="summary-badge">共 ${summary.total} 行</span>
-                <span class="summary-badge summary-new">新增 ${summary.new}</span>
-                <span class="summary-badge summary-update">更新 ${summary.update}</span>
-                <span class="summary-badge summary-restore">恢复 ${summary.restore}</span>
-                <span class="summary-badge summary-error">错误 ${summary.error}</span>
-            `;
-
-            // 逐行报告表格
-            let html = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>行号</th>
-                            <th>姓名</th>
-                            <th>身份证号</th>
-                            <th>银行账号</th>
-                            <th>银行地址</th>
-                            <th>电话</th>
-                            <th>状态</th>
-                            <th>提示</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
+            document.getElementById('importReport').style.display='block';
+            document.getElementById('importSummary').innerHTML = '<span class="badge badge-total">共 '+summary.total+' 行</span><span class="badge badge-new">新增 '+summary.new+'</span><span class="badge badge-update">更新 '+summary.update+'</span><span class="badge badge-restore">恢复 '+summary.restore+'</span><span class="badge badge-error">错误 '+summary.error+'</span>';
+            let h = '<div class="table-wrap"><table><thead><tr><th>行号</th><th>姓名</th><th>身份证号</th><th>银行账号</th><th>银行地址</th><th>电话</th><th>状态</th><th>提示</th></tr></thead><tbody>';
             rows.forEach(row => {
-                const rowClass = row.status === 'error' ? ' class="row-error"' : '';
-                const messages = row.messages.length
-                    ? `<span class="row-messages">${row.messages.join('；')}</span>`
-                    : '-';
-                html += `
-                    <tr${rowClass}>
-                        <td>${row._row}</td>
-                        <td><strong>${row.real_name || '(空)'}</strong></td>
-                        <td>${row.id_number || '-'}</td>
-                        <td>${row.bank_account || '-'}</td>
-                        <td>${row.bank_address || '-'}</td>
-                        <td>${row.phone || '-'}</td>
-                        <td><span class="status-badge status-${row.status}">${STATUS_LABELS[row.status]}</span></td>
-                        <td>${messages}</td>
-                    </tr>
-                `;
+                const cls = row.status==='error' ? ' class="row-error"' : '';
+                const msgs = row.messages.length ? '<span style="font-size:0.8125rem;color:#64748b">'+row.messages.join('；')+'</span>' : '-';
+                h += '<tr'+cls+'><td>'+row._row+'</td><td><strong>'+(row.real_name||'(空)')+'</strong></td><td>'+(row.id_number||'-')+'</td><td>'+(row.bank_account||'-')+'</td><td>'+(row.bank_address||'-')+'</td><td>'+(row.phone||'-')+'</td><td><span class="status-badge status-'+row.status+'">'+STATUS_LABELS[row.status]+'</span></td><td>'+msgs+'</td></tr>';
             });
-
-            html += '</tbody></table>';
-            document.getElementById('importTable').innerHTML = html;
-
-            // 没有有效行时禁用确认按钮
-            const validCount = summary.new + summary.update + summary.restore;
+            h += '</tbody></table></div>';
+            document.getElementById('importTable').innerHTML = h;
+            const vc = summary.new+summary.update+summary.restore;
             const btn = document.getElementById('confirmImportBtn');
-            btn.disabled = validCount === 0;
-            btn.textContent = validCount > 0 ? `确认导入（${validCount} 条有效记录）` : '没有可导入的有效记录';
+            btn.disabled = vc===0;
+            btn.textContent = vc>0 ? '确认导入（'+vc+' 条有效记录）' : '没有可导入的有效记录';
         }
-
-        /**
-         * 确认导入
-         * @description 把校验通过的行提交到 /api/import-confirm 写入数据库
-         * @returns {Promise<void>} 无返回值
-         */
         async function confirmImport() {
-            const validRows = importRows.filter(r => r.status !== 'error');
-
-            if (validRows.length === 0) {
-                showMessage('importMessage', '没有可导入的有效数据', 'error');
-                return;
-            }
-
-            if (!confirm(`确认导入 ${validRows.length} 条记录吗？`)) {
-                return;
-            }
-
+            const valid = importRows.filter(r=>r.status!=='error');
+            if (!valid.length) { showMessage('importMessage','没有可导入的有效数据','error'); return; }
+            if (!confirm('确认导入 '+valid.length+' 条记录吗？')) return;
             try {
-                const response = await fetch('/api/import-confirm', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({rows: validRows})
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    showMessage('importMessage',
-                        `导入完成：新增 ${result.inserted} 条，更新 ${result.updated} 条，` +
-                        `恢复 ${result.restored} 条，跳过 ${result.skipped} 条`, 'success');
-                    // 重置导入区域
-                    document.getElementById('importReport').style.display = 'none';
-                    document.getElementById('importFile').value = '';
-                    importRows = [];
-                } else {
-                    showMessage('importMessage', result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('importMessage', '导入失败: ' + error.message, 'error');
-            }
+                const r = await fetch('/api/import-confirm', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({rows:valid})});
+                const d = await r.json();
+                if (d.success) {
+                    showMessage('importMessage','导入完成：新增'+d.inserted+'条，更新'+d.updated+'条，恢复'+d.restored+'条，跳过'+d.skipped+'条','success');
+                    document.getElementById('importReport').style.display='none';
+                    document.getElementById('importFile').value='';
+                    importRows=[];
+                    toast('导入完成','success');
+                } else showMessage('importMessage',d.message,'error');
+            } catch (e) { showMessage('importMessage','导入失败: '+e.message,'error'); }
         }
 
-        /* ***********************************************************
-         * 操作日志模块（仅管理员）
-         * 按日期/级别/关键词查询日志，支持分页与防抖搜索
-         * *********************************************************** */
-
-        let logPage = 1;           // 当前页码
-        let logCategory = 'system'; // 当前日志分类：system 系统日志 / db 数据库改动日志
-        let logKeywordTimer = null; // 关键词输入防抖计时器
-
-        /**
-         * 切换日志分类：重置筛选条件与页码后重新加载
-         * @param {string} category - system 或 db
-         */
-        function switchLogCategory(category) {
-            if (logCategory === category) return;
-            logCategory = category;
-            document.querySelectorAll('.log-cat-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.category === category);
-            });
-            // 换类别后筛选条件失效，全部重置
-            document.getElementById('logLevelSelect').value = '';
-            document.getElementById('logKeyword').value = '';
-            logPage = 1;
-            loadLogs();
+        /* ===== 操作日志 ===== */
+        let logPage = 1;
+        let logCategory = 'system';
+        let logKeywordTimer = null;
+        function switchLogCategory(cat) {
+            if (logCategory===cat) return;
+            logCategory = cat;
+            document.querySelectorAll('.log-cat-btn').forEach(b => b.classList.toggle('active', b.dataset.category===cat));
+            document.getElementById('logLevelSelect').value='';
+            document.getElementById('logKeyword').value='';
+            logPage=1; loadLogs();
         }
-
-        /**
-         * HTML 转义，防止日志内容注入页面
-         * @param {string} str - 原始字符串
-         * @returns {string} 转义后的安全字符串
-         */
-        function escapeHtml(str) {
-            return String(str == null ? '' : str)
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-        }
-
-        /**
-         * 加载日志列表
-         * @description 按当前筛选条件请求 /api/logs 并渲染各子区域
-         * @param {number} [page] - 目标页码，不传则保持当前页
-         * @returns {Promise<void>} 无返回值
-         */
+        function escapeHtml(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
         async function loadLogs(page) {
             if (page) logPage = page;
             const list = document.getElementById('logsList');
-            list.innerHTML = '<div class="empty-state">加载中...</div>';
-
-            const params = new URLSearchParams({
-                category: logCategory,
-                date: document.getElementById('logDateSelect').value || '',
-                level: document.getElementById('logLevelSelect').value,
-                keyword: document.getElementById('logKeyword').value.trim(),
-                page: logPage,
-                page_size: 50
-            });
-
+            list.innerHTML = '<div class="empty-state"><p>加载中...</p></div>';
+            const params = new URLSearchParams({category:logCategory, date:document.getElementById('logDateSelect').value||'', level:document.getElementById('logLevelSelect').value, keyword:document.getElementById('logKeyword').value.trim(), page:logPage, page_size:50});
             try {
-                const response = await fetch('/api/logs?' + params);
-                const result = await response.json();
-                if (!result.success) {
-                    list.innerHTML = `<div class="empty-state">${escapeHtml(result.message)}</div>`;
-                    document.getElementById('logsStats').innerHTML = '';
-                    document.getElementById('logsPagination').innerHTML = '';
-                    return;
-                }
-                renderLogDates(result.dates, result.date);
-                renderLogStats(result.stats, result.total);
-                renderLogList(result.logs);
-                renderLogPagination(result.page, result.pages);
-            } catch (error) {
-                list.innerHTML = '<div class="empty-state">日志加载失败，请稍后重试</div>';
-            }
+                const r = await fetch('/api/logs?'+params);
+                const d = await r.json();
+                if (!d.success) { list.innerHTML='<div class="empty-state"><p>'+escapeHtml(d.message)+'</p></div>'; document.getElementById('logsStats').innerHTML=''; document.getElementById('logsPagination').innerHTML=''; return; }
+                renderLogDates(d.dates, d.date);
+                renderLogStats(d.stats, d.total);
+                renderLogList(d.logs);
+                renderLogPagination(d.page, d.pages);
+            } catch (e) { list.innerHTML='<div class="empty-state"><p>日志加载失败</p></div>'; }
         }
-
-        /**
-         * 渲染日期下拉框（仅当日期列表变化时重建，避免打断用户操作）
-         * @param {Array<string>} dates - 可用日期列表（新→旧）
-         * @param {string} current - 当前查询的日期
-         */
         function renderLogDates(dates, current) {
             const sel = document.getElementById('logDateSelect');
-            const existing = Array.from(sel.options).map(o => o.value).join(',');
+            const existing = Array.from(sel.options).map(o=>o.value).join(',');
             if (existing !== dates.join(',')) {
-                // 本地时区的今天，用于标注（避免 toISOString 的 UTC 时区偏差）
                 const now = new Date();
-                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                sel.innerHTML = dates.map(d =>
-                    `<option value="${d}">${d}${d === today ? '（今天）' : ''}</option>`
-                ).join('');
+                const today = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+                sel.innerHTML = dates.map(d => '<option value="'+d+'">'+d+(d===today?'（今天）':'')+'</option>').join('');
             }
             sel.value = current;
         }
-
-        /**
-         * 渲染级别统计徽章
-         * @param {Object} stats - {级别: 数量}
-         * @param {number} total - 过滤后总条数
-         */
         function renderLogStats(stats, total) {
-            document.getElementById('logsStats').innerHTML = `
-                <span class="log-stat-badge log-stat-total">共 ${total} 条</span>
-                <span class="log-stat-badge log-stat-info">INFO ${stats.INFO || 0}</span>
-                <span class="log-stat-badge log-stat-warning">WARNING ${stats.WARNING || 0}</span>
-                <span class="log-stat-badge log-stat-error">ERROR ${(stats.ERROR || 0) + (stats.CRITICAL || 0)}</span>`;
+            document.getElementById('logsStats').innerHTML = '<span class="log-stat-badge log-stat-total">共 '+total+' 条</span><span class="log-stat-badge log-stat-info">INFO '+(stats.INFO||0)+'</span><span class="log-stat-badge log-stat-warning">WARNING '+(stats.WARNING||0)+'</span><span class="log-stat-badge log-stat-error">ERROR '+((stats.ERROR||0)+(stats.CRITICAL||0))+'</span>';
         }
-
-        /**
-         * 渲染日志列表（已选定日期，时间列只显示时分秒）
-         * @param {Array<Object>} logs - 日志条目数组
-         */
         function renderLogList(logs) {
             const list = document.getElementById('logsList');
-            if (!logs.length) {
-                list.innerHTML = '<div class="empty-state">📭 没有符合条件的日志记录</div>';
-                return;
-            }
+            if (!logs.length) { list.innerHTML='<div class="empty-state"><p>没有符合条件的日志</p></div>'; return; }
             list.innerHTML = logs.map(log => {
-                const lv = (log.level || 'INFO').toLowerCase();
-                const time = (log.time || '').split(' ')[1] || log.time;
-                return `<div class="log-row log-row-level-${lv}">
-                    <span class="log-time">${escapeHtml(time)}</span>
-                    <span class="log-level-badge log-level-${lv}">${escapeHtml(log.level)}</span>
-                    <span class="log-message">${escapeHtml(log.message)}</span>
-                    <span class="log-module">${escapeHtml(log.module)}</span>
-                </div>`;
+                const lv = (log.level||'INFO').toLowerCase();
+                const time = (log.time||'').split(' ')[1]||log.time;
+                return '<div class="log-row log-row-level-'+lv+'"><span class="log-time">'+escapeHtml(time)+'</span><span class="log-level-badge log-level-'+lv+'">'+escapeHtml(log.level)+'</span><span class="log-message">'+escapeHtml(log.message)+'</span><span class="log-module">'+escapeHtml(log.module)+'</span></div>';
             }).join('');
         }
-
-        /**
-         * 渲染分页控件（单页时隐藏）
-         * @param {number} page - 当前页
-         * @param {number} pages - 总页数
-         */
         function renderLogPagination(page, pages) {
             const el = document.getElementById('logsPagination');
-            if (pages <= 1) {
-                el.innerHTML = '';
-                return;
-            }
-            el.innerHTML = `
-                <button onclick="loadLogs(${page - 1})" ${page <= 1 ? 'disabled' : ''}>‹ 上一页</button>
-                <span class="page-info">第 ${page} / ${pages} 页</span>
-                <button onclick="loadLogs(${page + 1})" ${page >= pages ? 'disabled' : ''}>下一页 ›</button>`;
+            if (pages<=1) { el.innerHTML=''; return; }
+            el.innerHTML = '<button onclick="loadLogs('+(page-1)+')" '+(page<=1?'disabled':'')+'>上一页</button><span class="page-info">第 '+page+' / '+pages+' 页</span><button onclick="loadLogs('+(page+1)+')" '+(page>=pages?'disabled':'')+'>下一页</button>';
         }
-
-        /** 日期/级别筛选变化：回到第一页重新加载 */
-        function onLogFilterChange() {
-            logPage = 1;
-            loadLogs();
-        }
-
-        // 关键词输入：400ms 防抖后回到第一页搜索
+        function onLogFilterChange() { logPage=1; loadLogs(); }
         document.getElementById('logKeyword').addEventListener('input', () => {
             clearTimeout(logKeywordTimer);
-            logKeywordTimer = setTimeout(() => {
-                logPage = 1;
-                loadLogs();
-            }, 400);
+            logKeywordTimer = setTimeout(()=>{ logPage=1; loadLogs(); }, 400);
         });
     </script>
 </body>

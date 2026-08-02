@@ -1,176 +1,116 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>数据库备份 - 员工信息管理系统</title>
     <style>
-        /* 备份页面沿用管理后台的深色视觉和按钮风格。 */
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            min-height: 100vh;
-            padding: 20px;
-            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            color: #e0e0e0;
-        }
-        .backup-page {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: rgba(30, 30, 40, 0.95);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-        }
-        .backup-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 25px 30px;
-            background: linear-gradient(135deg, #2d2d44 0%, #1a1a2e 100%);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .backup-header h1 {
-            margin: 0;
-            font-size: 1.5rem;
-        }
-        .backup-header-actions,
-        .backup-panel-actions {
-            display: flex;
-            gap: 10px;
-        }
-        .backup-content { padding: 30px; }
-        .backup-panel {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 24px;
-            padding: 22px 25px;
-            background: rgba(50, 50, 60, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-        }
-        .backup-panel-copy {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-        .backup-panel-icon { font-size: 2rem; }
-        .backup-panel h2 { margin: 0 0 6px; font-size: 1.1rem; }
-        .backup-panel p { margin: 0; color: #aaa; font-size: 0.9rem; }
-        .backup-panel button:disabled { opacity: 0.6; cursor: wait; }
-        .backup-list-section { margin-top: 30px; }
-        .backup-list-section h2 {
-            margin: 0 0 16px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 1.2rem;
-        }
-        .backup-list {
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-        }
-        .backup-list-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 16px 18px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        }
-        .backup-list-item:last-child { border-bottom: 0; }
-        .backup-file-info {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            min-width: 0;
-        }
-        .backup-file-info strong {
-            overflow: hidden;
-            color: #e0e0e0;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .backup-file-info span { color: #999; font-size: 0.88rem; }
-        .backup-empty {
-            padding: 40px 20px;
-            color: #999;
-            text-align: center;
-        }
-        .backup-error { color: #ff6b6b; }
-        .backup-toast {
-            position: fixed;
-            top: 24px;
-            right: 24px;
-            z-index: 2000;
-            max-width: min(420px, calc(100vw - 48px));
-            padding: 14px 18px;
-            border-radius: 10px;
-            color: #fff;
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
-            opacity: 0;
-            transform: translateY(-12px);
-            pointer-events: none;
-            transition: opacity 0.2s ease, transform 0.2s ease;
-        }
-        .backup-toast.visible { opacity: 1; transform: translateY(0); }
-        .backup-toast.success { background: #247a45; }
-        .backup-toast.error { background: #a73543; }
-        .btn {
-            display: inline-block;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: 500;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.3s ease;
-        }
-        .btn:hover { transform: translateY(-2px); }
-        .btn-primary {
-            background: linear-gradient(135deg, #4a4a6a 0%, #3a3a5a 100%);
-            color: #e0e0e0;
-        }
-        .btn-success {
-            background: linear-gradient(135deg, #2d5a3d 0%, #1e4a2e 100%);
-            color: #e0e0e0;
-        }
-        .btn-sm { padding: 8px 14px; font-size: 0.85rem; }
-        @media (max-width: 650px) {
-            .backup-header,
-            .backup-panel,
-            .backup-list-item { align-items: stretch; flex-direction: column; }
-            .backup-header-actions,
-            .backup-panel-actions { flex-wrap: wrap; }
-            .backup-header-actions .btn,
-            .backup-panel-actions .btn { flex: 1; text-align: center; }
-        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:-apple-system,'Segoe UI','Microsoft YaHei',sans-serif; background:#f1f5f9; min-height:100vh; color:#0f172a; }
+        .topbar { background:#fff; border-bottom:1px solid #e2e8f0; padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+        .topbar-left { display:flex; align-items:center; gap:12px; }
+        .topbar-logo { width:32px; height:32px; background:#4f46e5; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:14px; }
+        .topbar-title { font-size:1rem; font-weight:600; }
+        .topbar-right { display:flex; align-items:center; gap:10px; }
+        .btn-topbar { padding:6px 14px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#475569; font-size:0.8125rem; cursor:pointer; transition:all 0.15s; text-decoration:none; }
+        .btn-topbar:hover { background:#f8fafc; border-color:#cbd5e1; }
+        .content { max-width:900px; margin:0 auto; padding:24px; }
+        .card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:16px; overflow:hidden; }
+        .card-header { padding:16px 20px; border-bottom:1px solid #f1f5f9; font-size:0.9375rem; font-weight:600; }
+        .card-body { padding:20px; }
+        .btn { padding:10px 20px; border:none; border-radius:8px; font-size:0.875rem; font-weight:600; cursor:pointer; transition:all 0.15s; }
+        .btn-primary { background:#4f46e5; color:#fff; }
+        .btn-primary:hover { background:#4338ca; }
+        .btn-success { background:#059669; color:#fff; }
+        .btn-success:hover { background:#047857; }
+        .btn-danger { background:#dc2626; color:#fff; }
+        .btn-danger:hover { background:#b91c1c; }
+        .btn-sm { padding:6px 12px; font-size:0.8125rem; }
+        .btn:disabled { opacity:0.5; cursor:not-allowed; }
+        .message { padding:10px 14px; border-radius:8px; font-size:0.8125rem; margin-bottom:12px; }
+        .message.success { background:#f0fdf4; color:#059669; border:1px solid #bbf7d0; }
+        .message.error { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+        .section-title { font-size:0.875rem; font-weight:600; color:#334155; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f1f5f9; }
+        .backup-item { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid #f1f5f9; transition:background 0.1s; }
+        .backup-item:hover { background:#f8fafc; }
+        .backup-item:last-child { border-bottom:none; }
+        .backup-name { font-size:0.875rem; font-weight:500; color:#0f172a; }
+        .backup-meta { font-size:0.75rem; color:#94a3b8; margin-top:2px; }
+        .backup-actions { display:flex; gap:6px; }
+        .empty-state { text-align:center; padding:32px; color:#94a3b8; font-size:0.875rem; }
+        .toast-container { position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; flex-direction:column; gap:8px; }
+        .toast { padding:12px 20px; border-radius:8px; font-size:0.875rem; font-weight:500; box-shadow:0 4px 12px rgba(0,0,0,0.1); animation:slideIn 0.3s ease; }
+        .toast.success { background:#059669; color:#fff; }
+        .toast.error { background:#dc2626; color:#fff; }
+        @keyframes slideIn { from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)} }
     </style>
 </head>
 <body>
-    <main class="backup-page">
-        <header class="backup-header">
-            <h1>💾 数据库备份</h1>
-            <div class="backup-header-actions">
-                <a href="/admin" class="btn btn-primary">返回管理后台</a>
-                <a href="/" class="btn btn-primary">返回主页</a>
-            </div>
-        </header>
-        <div class="backup-content">
-            {% include 'components/backup_panel.html' %}
-            <section class="backup-list-section" aria-labelledby="backupListTitle">
-                <h2 id="backupListTitle">历史备份</h2>
-                <div class="backup-list" id="backupList">
-                    <div class="backup-empty">正在加载备份列表...</div>
-                </div>
-            </section>
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="topbar-logo">S</div>
+            <span class="topbar-title">数据库备份</span>
         </div>
-    </main>
-    {% include 'components/backup_script.html' %}
+        <div class="topbar-right">
+            <a href="/" class="btn-topbar">返回主页</a>
+            <a href="/admin" class="btn-topbar">管理后台</a>
+            <button class="btn-topbar" onclick="logout()">退出</button>
+        </div>
+    </div>
+    <div class="content">
+        <div class="card">
+            <div class="card-header">创建备份</div>
+            <div class="card-body">
+                <div id="backupMessage"></div>
+                <p style="font-size:0.8125rem;color:#64748b;margin-bottom:16px">
+                    手动创建数据库备份，备份文件将保存在服务器端。
+                </p>
+                <button class="btn btn-success" id="createBackupBtn" onclick="createBackup()">创建备份</button>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">备份列表</div>
+            <div class="card-body" style="padding:0">
+                <div id="backupList"><div class="empty-state">加载中...</div></div>
+            </div>
+        </div>
+    </div>
+    <div class="toast-container" id="toastContainer"></div>
+    <script>
+        function toast(msg,type) { const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className='toast '+(type||'info'); t.textContent=msg; c.appendChild(t); setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(()=>t.remove(),300)},3000); }
+        function showMessage(elId,text,type) { document.getElementById(elId).innerHTML='<div class="message '+type+'">'+text+'</div>'; setTimeout(()=>{document.getElementById(elId).innerHTML='';},3000); }
+        async function logout() { try{await fetch('/api/logout',{method:'POST'})}catch(e){} window.location.href='/login'; }
+        async function loadBackups() {
+            try {
+                const r = await fetch('/api/backups');
+                const d = await r.json();
+                const c = document.getElementById('backupList');
+                if (d.success && d.data.length) {
+                    c.innerHTML = d.data.map(b => '<div class="backup-item"><div><div class="backup-name">'+b.filename+'</div><div class="backup-meta">'+b.size+' · '+b.created_at+'</div></div><div class="backup-actions"><a href="/api/backups/'+b.filename+'/download" class="btn btn-primary btn-sm" style="text-decoration:none">下载</a><button class="btn btn-danger btn-sm" onclick="deleteBackup(\''+b.filename+'\')">删除</button></div></div>').join('');
+                } else c.innerHTML = '<div class="empty-state">暂无备份</div>';
+            } catch (e) { document.getElementById('backupList').innerHTML = '<div class="empty-state">加载失败</div>'; }
+        }
+        async function createBackup() {
+            const btn = document.getElementById('createBackupBtn');
+            btn.disabled = true; btn.textContent = '创建中...';
+            try {
+                const r = await fetch('/api/backups', {method:'POST'});
+                const d = await r.json();
+                if (d.success) { showMessage('backupMessage',d.message,'success'); loadBackups(); toast(d.message,'success'); }
+                else showMessage('backupMessage',d.message,'error');
+            } catch (e) { showMessage('backupMessage','创建失败: '+e.message,'error'); }
+            btn.disabled = false; btn.textContent = '创建备份';
+        }
+        async function deleteBackup(filename) {
+            if (!confirm('确定删除备份 "'+filename+'" 吗？')) return;
+            try {
+                const r = await fetch('/api/backups/'+encodeURIComponent(filename), {method:'DELETE'});
+                const d = await r.json();
+                if (d.success) { toast(d.message,'success'); loadBackups(); }
+                else toast(d.message,'error');
+            } catch (e) { toast('删除失败','error'); }
+        }
+        loadBackups();
+    </script>
 </body>
 </html>

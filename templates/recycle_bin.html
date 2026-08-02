@@ -1,463 +1,126 @@
-<!--
-================================================================================
-文件名称: recycle_bin.html
-文件描述: 回收站页面 - 员工信息管理系统
-主要功能:
-    1. 查看已删除（软删除）的员工记录，含删除时间和删除人
-    2. 恢复员工记录到在职列表
-    3. 彻底删除员工记录（物理删除，仅管理员，不可恢复）
-技术栈:
-    - 前端: HTML5 + CSS3 + JavaScript (原生)
-    - 后端API: /api/recycle-bin, /api/employee/<name>/restore, /api/employee/<name>/permanent
-================================================================================
--->
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>回收站 - 员工信息管理系统</title>
     <style>
-        /* 全局样式（与主页一致的紫色主题） */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
-        }
-
-        /* 页面头部 */
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 25px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .header-left h1 {
-            font-size: 1.6rem;
-            margin-bottom: 5px;
-        }
-
-        .header-left p {
-            opacity: 0.9;
-            font-size: 0.95rem;
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 18px;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 25px;
-            font-size: 0.95rem;
-        }
-
-        .btn-header {
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            color: white;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-        }
-
-        .btn-header:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        /* 内容区域 */
-        .content {
-            padding: 30px;
-        }
-
-        .tip {
-            background: #fff8e1;
-            border: 1px solid #ffe0b2;
-            color: #8d6e63;
-            border-radius: 10px;
-            padding: 12px 18px;
-            margin-bottom: 20px;
-            font-size: 0.95rem;
-        }
-
-        /* 消息提示 */
-        .message {
-            padding: 15px 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-
-        .message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        /* 表格 */
-        .table-container {
-            overflow-x: auto;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-        }
-
-        th {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 16px;
-            text-align: left;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        td {
-            padding: 14px 16px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        tr:hover {
-            background: #f8f9ff;
-        }
-
-        /* 按钮 */
-        .btn {
-            padding: 14px 30px;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            color: white;
-        }
-
-        .btn-success:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(17, 153, 142, 0.4);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(235, 51, 73, 0.4);
-        }
-
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 0.85rem;
-            border-radius: 6px;
-        }
-
-        .actions {
-            display: flex;
-            gap: 8px;
-            white-space: nowrap;
-        }
-
-        /* 空状态 */
-        .empty-state {
-            text-align: center;
-            padding: 60px 40px;
-            color: #999;
-        }
-
-        .empty-state .icon {
-            font-size: 3.5rem;
-            margin-bottom: 15px;
-        }
-
-        .deleted-info {
-            color: #888;
-            font-size: 0.9rem;
-            white-space: nowrap;
-        }
-
-        .pagination {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 12px 0;
-            font-size: 14px;
-            color: #666;
-        }
-        .pagination button {
-            padding: 6px 14px;
-            border: 1px solid #d0d0d0;
-            border-radius: 6px;
-            background: #fff;
-            color: #333;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.2s;
-        }
-        .pagination button:hover:not(:disabled) {
-            background: #007bff;
-            color: #fff;
-            border-color: #007bff;
-        }
-        .pagination button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-        .pagination .page-info {
-            margin: 0 8px;
-            color: #888;
-        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:-apple-system,'Segoe UI','Microsoft YaHei',sans-serif; background:#f1f5f9; min-height:100vh; color:#0f172a; }
+        .topbar { background:#fff; border-bottom:1px solid #e2e8f0; padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+        .topbar-left { display:flex; align-items:center; gap:12px; }
+        .topbar-logo { width:32px; height:32px; background:#4f46e5; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:14px; }
+        .topbar-title { font-size:1rem; font-weight:600; }
+        .topbar-right { display:flex; align-items:center; gap:10px; }
+        .btn-topbar { padding:6px 14px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; color:#475569; font-size:0.8125rem; cursor:pointer; transition:all 0.15s; text-decoration:none; }
+        .btn-topbar:hover { background:#f8fafc; border-color:#cbd5e1; }
+        .content { max-width:1100px; margin:0 auto; padding:24px; }
+        .card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; }
+        .card-header { padding:16px 20px; border-bottom:1px solid #f1f5f9; font-size:0.9375rem; font-weight:600; display:flex; align-items:center; justify-content:space-between; }
+        .card-body { padding:0; }
+        .btn { padding:10px 20px; border:none; border-radius:8px; font-size:0.875rem; font-weight:600; cursor:pointer; transition:all 0.15s; }
+        .btn-primary { background:#4f46e5; color:#fff; }
+        .btn-primary:hover { background:#4338ca; }
+        .btn-success { background:#059669; color:#fff; }
+        .btn-success:hover { background:#047857; }
+        .btn-danger { background:#dc2626; color:#fff; }
+        .btn-danger:hover { background:#b91c1c; }
+        .btn-sm { padding:6px 12px; font-size:0.8125rem; }
+        .btn:disabled { opacity:0.5; cursor:not-allowed; }
+        .message { padding:10px 14px; border-radius:8px; font-size:0.8125rem; margin:16px 20px 0; }
+        .message.success { background:#f0fdf4; color:#059669; border:1px solid #bbf7d0; }
+        .message.error { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
+        .table-wrap { overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:0.875rem; }
+        th { background:#f8fafc; color:#475569; font-weight:600; font-size:0.8125rem; padding:10px 14px; text-align:left; border-bottom:1px solid #e2e8f0; white-space:nowrap; }
+        td { padding:10px 14px; border-bottom:1px solid #f1f5f9; color:#334155; }
+        tr:hover td { background:#f8fafc; }
+        tr:last-child td { border-bottom:none; }
+        .empty-state { text-align:center; padding:48px 20px; color:#94a3b8; font-size:0.875rem; }
+        .emp-actions { display:flex; gap:6px; }
+        .toast-container { position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; flex-direction:column; gap:8px; }
+        .toast { padding:12px 20px; border-radius:8px; font-size:0.875rem; font-weight:500; box-shadow:0 4px 12px rgba(0,0,0,0.1); animation:slideIn 0.3s ease; }
+        .toast.success { background:#059669; color:#fff; }
+        .toast.error { background:#dc2626; color:#fff; }
+        @keyframes slideIn { from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)} }
+        @media(max-width:768px) { .content{padding:16px;} }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- 页面头部 -->
-        <div class="header">
-            <div class="header-left">
-                <h1>🗑️ 回收站</h1>
-                <p>已删除的员工记录在此保留，可随时恢复</p>
-            </div>
-            <div class="header-right">
-                <div class="user-info">
-                    <span>👤</span>
-                    <span id="currentUsername">加载中...</span>
-                </div>
-                <a href="/" class="btn-header">← 返回主页</a>
-                <button class="btn-header" onclick="logout()">退出登录</button>
-            </div>
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="topbar-logo">S</div>
+            <span class="topbar-title">回收站</span>
         </div>
-
-        <!-- 内容区域 -->
-        <div class="content">
-            <div id="messageBox"></div>
-
-            <div class="tip">
-                💡 此处的记录已从查询、列表和导出中移除，但数据仍完整保留；
-                点击"恢复"可还原到在职员工列表。"彻底删除"仅管理员可操作，删除后不可恢复。
-            </div>
-
-            <div id="recycleList">
-                <div class="empty-state">
-                    <div class="icon">⏳</div>
-                    <p>加载中...</p>
-                </div>
-            </div>
-            <div class="pagination" id="recyclePagination"></div>
+        <div class="topbar-right">
+            <a href="/" class="btn-topbar">返回主页</a>
+            <button class="btn-topbar" onclick="logout()">退出</button>
         </div>
     </div>
-
+    <div class="content">
+        <div class="card">
+            <div class="card-header">
+                <span>已删除的员工记录</span>
+                <span id="recycleCount" style="font-size:0.8125rem;color:#94a3b8;font-weight:400"></span>
+            </div>
+            <div class="card-body">
+                <div id="recycleMessage"></div>
+                <div id="recycleList"><div class="empty-state">加载中...</div></div>
+            </div>
+        </div>
+    </div>
+    <div class="toast-container" id="toastContainer"></div>
     <script>
-        /** 当前用户是否管理员（控制"彻底删除"按钮的显示） */
+        function toast(msg,type) { const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className='toast '+(type||'info'); t.textContent=msg; c.appendChild(t); setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(()=>t.remove(),300)},3000); }
+        function showMessage(elId,text,type) { document.getElementById(elId).innerHTML='<div class="message '+type+'">'+text+'</div>'; setTimeout(()=>{document.getElementById(elId).innerHTML='';},3000); }
+        async function logout() { try{await fetch('/api/logout',{method:'POST'})}catch(e){} window.location.href='/login'; }
         let isAdmin = false;
-
-        /**
-         * 检查登录状态：未登录跳转到登录页；记录管理员身份
-         */
-        async function checkLoginStatus() {
+        async function checkAuth() {
             try {
-                const response = await fetch('/api/check-login');
-                const result = await response.json();
-
-                if (!result.logged_in) {
-                    window.location.href = '/login';
-                    return;
-                }
-
-                document.getElementById('currentUsername').textContent = result.username;
-                isAdmin = !!result.is_admin;
+                const r = await fetch('/api/check-login');
+                const d = await r.json();
+                if (!d.logged_in) { window.location.href='/login'; return; }
+                isAdmin = d.is_admin;
                 loadRecycleBin();
-            } catch (error) {
-                window.location.href = '/login';
-            }
+            } catch (e) { window.location.href='/login'; }
         }
-
-        /**
-         * 退出登录
-         */
-        async function logout() {
+        async function loadRecycleBin() {
             try {
-                await fetch('/api/logout', {method: 'POST'});
-            } finally {
-                window.location.href = '/login';
-            }
+                const r = await fetch('/api/recycle-bin');
+                const d = await r.json();
+                const c = document.getElementById('recycleList');
+                document.getElementById('recycleCount').textContent = d.success ? d.data.length+' 条记录' : '';
+                if (d.success && d.data.length) {
+                    let h = '<div class="table-wrap"><table><thead><tr><th>姓名</th><th>身份证号</th><th>银行账号</th><th>电话</th><th>删除时间</th><th>删除人</th><th>操作</th></tr></thead><tbody>';
+                    d.data.forEach(item => {
+                        let actions = '<button class="btn btn-success btn-sm" onclick="restoreEmployee(\''+item.real_name+'\')">恢复</button>';
+                        if (isAdmin) actions += ' <button class="btn btn-danger btn-sm" onclick="permanentDelete(\''+item.real_name+'\')">彻底删除</button>';
+                        h += '<tr><td><strong>'+item.real_name+'</strong></td><td>'+(item.id_number||'-')+'</td><td>'+(item.bank_account||'-')+'</td><td>'+(item.phone||'-')+'</td><td>'+(item.deleted_at||'-')+'</td><td>'+(item.deleted_by||'-')+'</td><td class="emp-actions">'+actions+'</td></tr>';
+                    });
+                    h += '</tbody></table></div>';
+                    c.innerHTML = h;
+                } else c.innerHTML = '<div class="empty-state">回收站为空</div>';
+            } catch (e) { document.getElementById('recycleList').innerHTML='<div class="empty-state">加载失败</div>'; }
         }
-
-        /**
-         * 加载回收站列表
-         */
-        let recycleCurrentPage = 1;
-        const recyclePageSize = 20;
-
-        async function loadRecycleBin(page) {
-            if (page !== undefined) recycleCurrentPage = page;
-            const container = document.getElementById('recycleList');
-            try {
-                const response = await fetch(`/api/recycle-bin?page=${recycleCurrentPage}&page_size=${recyclePageSize}`);
-                const result = await response.json();
-
-                if (!result.success || result.data.length === 0) {
-                    container.innerHTML = '<div class="empty-state"><div class="icon">🗑️</div><p>回收站是空的</p></div>';
-                    document.getElementById('recyclePagination').innerHTML = '';
-                    return;
-                }
-
-                let html = '<div class="table-container"><table><thead><tr>';
-                html += '<th>姓名</th><th>身份证号</th><th>银行账号</th><th>银行地址</th><th>电话</th><th>删除时间</th><th>删除人</th><th>操作</th>';
-                html += '</tr></thead><tbody>';
-
-                result.data.forEach(item => {
-                    const permanentBtn = isAdmin
-                        ? '<button class="btn btn-danger btn-sm" onclick="permanentDelete(\'' + item.real_name + '\')">彻底删除</button>'
-                        : '';
-                    html += '<tr>';
-                    html += '<td><strong>' + item.real_name + '</strong></td>';
-                    html += '<td>' + (item.id_number || '-') + '</td>';
-                    html += '<td>' + (item.bank_account || '-') + '</td>';
-                    html += '<td>' + (item.bank_address || '-') + '</td>';
-                    html += '<td>' + (item.phone || '-') + '</td>';
-                    html += '<td class="deleted-info">' + (item.deleted_at || '-') + '</td>';
-                    html += '<td class="deleted-info">' + (item.deleted_by || '-') + '</td>';
-                    html += '<td class="actions">' +
-                        '<button class="btn btn-success btn-sm" onclick="restoreEmployee(\'' + item.real_name + '\')">恢复</button> ' +
-                        permanentBtn + '</td></tr>';
-                });
-
-                html += '</tbody></table></div>';
-                container.innerHTML = html;
-                renderRecyclePagination(document.getElementById('recyclePagination'), result.page, result.pages, result.total);
-            } catch (error) {
-                container.innerHTML = '<div class="empty-state"><p>加载失败: ' + error.message + '</p></div>';
-            }
-        }
-
-        function renderRecyclePagination(el, current, total, totalCount) {
-            if (total <= 1) { el.innerHTML = ''; return; }
-            let html = '<button ' + (current <= 1 ? 'disabled' : '') + ' data-page="' + (current - 1) + '">上一页</button>';
-            html += '<span class="page-info">第 ' + current + ' / ' + total + ' 页，共 ' + totalCount + ' 条</span>';
-            html += '<button ' + (current >= total ? 'disabled' : '') + ' data-page="' + (current + 1) + '">下一页</button>';
-            el.innerHTML = html;
-            el.querySelectorAll('button').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const p = parseInt(this.dataset.page);
-                    if (!isNaN(p)) loadRecycleBin(p);
-                });
-            });
-        }
-
-        /**
-         * 恢复员工记录
-         * @param {string} name - 员工姓名
-         */
         async function restoreEmployee(name) {
-            if (!confirm(`确定要恢复 "${name}" 吗？恢复后将重新出现在员工列表中。`)) {
-                return;
-            }
-
+            if (!confirm('确定恢复 "'+name+'" 吗？')) return;
             try {
-                const response = await fetch(`/api/employee/${encodeURIComponent(name)}/restore`, {
-                    method: 'POST'
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    showMessage(result.message, 'success');
-                    loadRecycleBin();
-                } else {
-                    showMessage(result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('恢复失败: ' + error.message, 'error');
-            }
+                const r = await fetch('/api/employee/'+encodeURIComponent(name)+'/restore', {method:'POST'});
+                const d = await r.json();
+                if (d.success) { toast(d.message,'success'); loadRecycleBin(); }
+                else toast(d.message,'error');
+            } catch (e) { toast('恢复失败','error'); }
         }
-
-        /**
-         * 彻底删除员工记录（物理删除，不可恢复，仅管理员）
-         * @param {string} name - 员工姓名
-         */
         async function permanentDelete(name) {
-            if (!confirm(`⚠️ 确定要彻底删除 "${name}" 吗？\n\n此操作将永久删除数据库中的记录，不可恢复！`)) {
-                return;
-            }
-            // 二次确认，防止误操作
-            if (!confirm(`请再次确认：彻底删除 "${name}"，不可恢复！`)) {
-                return;
-            }
-
+            if (!confirm('⚠️ 彻底删除后无法恢复！\n确定要彻底删除 "'+name+'" 吗？')) return;
             try {
-                const response = await fetch(`/api/employee/${encodeURIComponent(name)}/permanent`, {
-                    method: 'DELETE'
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    showMessage(result.message, 'success');
-                    loadRecycleBin();
-                } else {
-                    showMessage(result.message, 'error');
-                }
-            } catch (error) {
-                showMessage('删除失败: ' + error.message, 'error');
-            }
+                const r = await fetch('/api/employee/'+encodeURIComponent(name)+'/permanent', {method:'DELETE'});
+                const d = await r.json();
+                if (d.success) { toast(d.message,'success'); loadRecycleBin(); }
+                else toast(d.message,'error');
+            } catch (e) { toast('删除失败','error'); }
         }
-
-        /**
-         * 显示消息提示，3 秒后自动消失
-         * @param {string} text - 消息文本
-         * @param {string} type - 'success' 或 'error'
-         */
-        function showMessage(text, type) {
-            const container = document.getElementById('messageBox');
-            container.innerHTML = `<div class="message ${type}">${text}</div>`;
-            setTimeout(() => { container.innerHTML = ''; }, 3000);
-        }
-
-        // 页面加载时检查登录状态（成功后自动加载列表）
-        checkLoginStatus();
+        checkAuth();
     </script>
 </body>
 </html>

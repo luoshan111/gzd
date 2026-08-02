@@ -1,4 +1,4 @@
-"""员工信息和回收站相关 API。"""
+﻿"""员工信息和回收站相关 API。"""
 
 from flask import request, session
 
@@ -28,7 +28,8 @@ def register_employee_routes(app):
         results = query_all(
             f"SELECT {EMPLOYEE_COLUMNS} FROM employees "
             "WHERE deleted = 0 "
-            "AND (real_name LIKE ? ESCAPE '\\' OR sx LIKE ? ESCAPE '\\')",
+            "AND (real_name LIKE ? ESCAPE '\\' OR sx LIKE ? ESCAPE '\\') "
+            "ORDER BY real_name",
             (keyword, keyword)
         )
 
@@ -48,7 +49,7 @@ def register_employee_routes(app):
             return api_err('分页参数格式错误')
         page = max(1, page)
         page_size = min(max(1, page_size), 100)
-    
+
         result = query_paginated(
             f"SELECT {EMPLOYEE_COLUMNS} FROM employees WHERE deleted = 0 ORDER BY real_name",
             page=page, page_size=page_size
@@ -89,7 +90,6 @@ def register_employee_routes(app):
             message = '信息添加成功'
             db_log.info('用户 %s 新增员工: %s', session.get('username'), fields['real_name'])
         elif existing['deleted']:
-            # 同名记录曾被软删除：恢复并覆盖为新内容，清除删除标记
             execute('''
                 UPDATE employees
                 SET id_number=?, bank_account=?, bank_address=?, phone=?, sx=?,
@@ -141,7 +141,7 @@ def register_employee_routes(app):
             return api_err('分页参数格式错误')
         page = max(1, page)
         page_size = min(max(1, page_size), 100)
-    
+
         result = query_paginated(
             f"SELECT {RECYCLE_COLUMNS} FROM employees WHERE deleted = 1 ORDER BY deleted_at DESC",
             page=page, page_size=page_size
