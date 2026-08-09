@@ -1,4 +1,4 @@
-"""员工信息管理系统 Flask 应用入口。
+﻿"""员工信息管理系统 Flask 应用入口。
 
 本文件只负责应用初始化、全局错误处理和路由模块注册；
 具体业务按认证、页面、员工、Excel 和管理员功能拆分到独立模块。
@@ -13,6 +13,7 @@ from admin_routes import register_admin_routes
 from auth_routes import register_auth_routes
 from employee_routes import register_employee_routes
 from import_export_routes import register_import_export_routes
+from agent_routes import register_agent_routes
 from log_utils import setup_logging, sys_log
 from page_routes import register_page_routes
 from db import init_db
@@ -60,6 +61,7 @@ register_page_routes(app)
 register_employee_routes(app)
 register_import_export_routes(app)
 register_admin_routes(app)
+register_agent_routes(app)
 
 
 if __name__ == '__main__':

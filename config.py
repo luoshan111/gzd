@@ -51,3 +51,9 @@ LOG_FILE = os.path.join(LOG_DIR, 'app.log')
 # 数据库备份参数：备份只由管理员在页面或命令行手动触发
 BACKUP_DIR = _env_path('GZD_BACKUP_DIR', 'backups')
 BACKUP_RETENTION = max(1, int(os.environ.get('GZD_BACKUP_RETENTION', '10')))
+
+# AI Agent 配置
+# 通过环境变量设置：GZD_AGENT_API_KEY / GZD_AGENT_MODEL / GZD_AGENT_BASE_URL
+AGENT_API_KEY = os.environ.get('GZD_AGENT_API_KEY', os.environ.get('OPENAI_API_KEY', ''))
+AGENT_MODEL = os.environ.get('GZD_AGENT_MODEL', 'gpt-4o-mini')
+AGENT_BASE_URL = os.environ.get('GZD_AGENT_BASE_URL', '')
