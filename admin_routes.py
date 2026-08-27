@@ -7,7 +7,7 @@ from flask import request, send_file, session
 from werkzeug.security import generate_password_hash
 
 from app_common import admin_required, api_err, api_ok
-from backup_utils import create_backup, get_backup_path, list_backups
+from backup_utils import create_backup, delete_backup, get_backup_path, list_backups
 from db import execute, query_all
 from log_utils import db_log, read_logs, sys_log
 
@@ -81,6 +81,15 @@ def register_admin_routes(app):
             return api_err('备份文件不存在或不允许下载', status=404)
         sys_log.info('管理员 %s 下载数据库备份: %s', session.get('username'), filename)
         return send_file(backup_path, as_attachment=True, download_name=backup_path.name)
+
+    @app.route('/api/admin/backup/<path:filename>', methods=['DELETE'])
+    @admin_required
+    def delete_backup_api(filename):
+        """删除指定数据库备份。"""
+        if not delete_backup(filename):
+            return api_err('备份文件不存在或不允许删除', status=404)
+        db_log.info('管理员 %s 删除数据库备份: %s', session.get('username'), filename)
+        return api_ok('备份删除成功', backups=list_backups())
 
 
     @app.route('/api/admin/users', methods=['GET'])

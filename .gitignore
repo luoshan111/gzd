@@ -1,4 +1,4 @@
-﻿.vscode/
+.vscode/
 __pycache__/
 
 # WorkBuddy 本地工作状态数据（记忆、日志等，不进版本库）
@@ -14,3 +14,4 @@ backups/
 .vs/
 
 .env
+data/test.db

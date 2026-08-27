@@ -119,6 +119,20 @@ def get_backup_path(filename: str) -> Path | None:
     return backup_path if backup_path.is_file() else None
 
 
+def delete_backup(filename: str) -> bool:
+    """删除指定备份文件，成功返回 True；复用 get_backup_path 的安全校验。"""
+    backup_path = get_backup_path(filename)
+    if not backup_path:
+        return False
+    try:
+        backup_path.unlink()
+        backup_log.info('管理员删除数据库备份: %s', backup_path.name)
+        return True
+    except OSError:
+        backup_log.exception('删除数据库备份失败: %s', backup_path)
+        return False
+
+
 def _format_size(size: int) -> str:
     """将字节数转换为备份列表中的可读大小。"""
     if size < 1024:

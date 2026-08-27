@@ -1,15 +1,14 @@
-﻿@echo off
-chcp 65001 >nul
-title 关闭员工信息管理系统
+@echo off
+title �ر�Ա����Ϣ����ϵͳ
 
 REM ============================================================
-REM  关闭脚本：只结束占用服务端口（默认 5001）的进程，
-REM  不会影响电脑上其他正在运行的 Python 程序。
+REM  �رսű���ֻ����ռ�÷���˿ڣ�Ĭ�� 5001���Ľ��̣�
+REM  ����Ӱ������������������е� Python ����
 REM ============================================================
 
 if "%GZD_PORT%"=="" set "GZD_PORT=5001"
 
-echo 正在关闭项目（端口 %GZD_PORT%）...
+echo ���ڹر���Ŀ���˿� %GZD_PORT%��...
 
 set "FOUND="
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":%GZD_PORT% " ^| findstr "LISTENING"') do (
@@ -19,8 +18,8 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":%GZD_PORT% " ^| findstr "LI
 
 echo.
 if defined FOUND (
-    echo 已关闭员工信息管理系统。
+    echo �ѹر�Ա����Ϣ����ϵͳ��
 ) else (
-    echo 未发现正在运行的服务（端口 %GZD_PORT% 未被占用）。
+    echo δ�����������еķ��񣨶˿� %GZD_PORT% δ��ռ�ã���
 )
 pause

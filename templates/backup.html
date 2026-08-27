@@ -82,11 +82,11 @@
         async function logout() { try{await fetch('/api/logout',{method:'POST'})}catch(e){} window.location.href='/login'; }
         async function loadBackups() {
             try {
-                const r = await fetch('/api/backups');
+                const r = await fetch('/api/admin/backups');
                 const d = await r.json();
                 const c = document.getElementById('backupList');
                 if (d.success && d.data.length) {
-                    c.innerHTML = d.data.map(b => '<div class="backup-item"><div><div class="backup-name">'+b.filename+'</div><div class="backup-meta">'+b.size+' · '+b.created_at+'</div></div><div class="backup-actions"><a href="/api/backups/'+b.filename+'/download" class="btn btn-primary btn-sm" style="text-decoration:none">下载</a><button class="btn btn-danger btn-sm" onclick="deleteBackup(\''+b.filename+'\')">删除</button></div></div>').join('');
+                    c.innerHTML = d.data.map(b => '<div class="backup-item"><div><div class="backup-name">'+b.filename+'</div><div class="backup-meta">'+b.size_text+' · '+b.created_at+'</div></div><div class="backup-actions"><a href="/api/admin/backup/'+encodeURIComponent(b.filename)+'" class="btn btn-primary btn-sm" style="text-decoration:none">下载</a><button class="btn btn-danger btn-sm" onclick="deleteBackup(\''+b.filename+'\')">删除</button></div></div>').join('');
                 } else c.innerHTML = '<div class="empty-state">暂无备份</div>';
             } catch (e) { document.getElementById('backupList').innerHTML = '<div class="empty-state">加载失败</div>'; }
         }
@@ -94,7 +94,7 @@
             const btn = document.getElementById('createBackupBtn');
             btn.disabled = true; btn.textContent = '创建中...';
             try {
-                const r = await fetch('/api/backups', {method:'POST'});
+                const r = await fetch('/api/admin/backup', {method:'POST'});
                 const d = await r.json();
                 if (d.success) { showMessage('backupMessage',d.message,'success'); loadBackups(); toast(d.message,'success'); }
                 else showMessage('backupMessage',d.message,'error');
@@ -104,7 +104,7 @@
         async function deleteBackup(filename) {
             if (!confirm('确定删除备份 "'+filename+'" 吗？')) return;
             try {
-                const r = await fetch('/api/backups/'+encodeURIComponent(filename), {method:'DELETE'});
+                const r = await fetch('/api/admin/backup/'+encodeURIComponent(filename), {method:'DELETE'});
                 const d = await r.json();
                 if (d.success) { toast(d.message,'success'); loadBackups(); }
                 else toast(d.message,'error');
