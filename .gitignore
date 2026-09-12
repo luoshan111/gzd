@@ -16,3 +16,8 @@ backups/
 .env
 data/test.db
 data/sjk.db
+
+# 员工敏感数据（含身份证号/银行账号），一律不入版本库
+data/*.xlsx
+run.err
+run.log
