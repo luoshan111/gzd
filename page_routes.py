@@ -22,6 +22,13 @@ def register_page_routes(app):
         return render_template('admin.html')
 
 
+    @app.route('/change-password')
+    @login_required
+    def change_password_page():
+        """修改密码页面：用户验证旧密码后设置新密码。"""
+        return render_template('change_password.html')
+
+
     @app.route('/recycle-bin')
     @login_required
     def recycle_bin_page():
