@@ -33,7 +33,7 @@
 - `auth_routes.py`：登录、登出和登录状态接口
 - `page_routes.py`：主页、后台、回收站和备份页面路由
 - `employee_routes.py`：员工信息与回收站 API
-- `import_export_routes.py`：Excel 导入、导出和下载 API
+- `import_export_routes.py`：Excel 导入、导出 API
 - `admin_routes.py`：日志、备份和管理员用户 API
 - `config.py`：集中配置（数据库/文件路径/密钥，支持环境变量覆盖）
 - `db.py`：数据库访问层，含建表、旧库迁移与查询助手
@@ -49,8 +49,7 @@
 - `gzb_output.py`：示例导出脚本，用于生成员工报表
 - `data/sjk.db`：SQLite 数据库文件
 - `data/input.xlsx`：输入 Excel 文件
-- `data/output.xlsx`：导出结果文件
-- `data/shuchu.xlsx`：手动导出结果文件
+- `data/output.xlsx`：命令行脚本 `gzb_output.py` 的输出文件（网页导出不落盘）
 
 ## 快速开始
 
@@ -151,8 +150,10 @@ eal_name）升序排列。
 
 ### Excel 导出
 
-- 通过 `input.xlsx` 中的姓名列表生成结果文件 `output.xlsx`
-- 也支持手动输入姓名列表导出到 `shuchu.xlsx`
+- 通过 `input.xlsx` 中的姓名列表导出，或在前端手动输入姓名列表导出
+- 导出文件在内存中生成、浏览器直接下载（`导出信息_时间戳.xlsx`，保存在浏览器默认下载目录），服务器不落盘，多用户并发导出互不影响
+- AI 助手导出的文件保存在系统临时目录 `%TEMP%\gzd_exports\`，保留 24 小时后自动清理
+- 命令行脚本 `gzb_output.py` 仍输出到 `data/output.xlsx`
 
 ### 用户与权限
 
@@ -183,9 +184,7 @@ eal_name）升序排列。
 ├── requirements.txt
 ├── data/                   # 数据文件
 │   ├── sjk.db
-│   ├── input.xlsx
-│   ├── output.xlsx
-│   └── shuchu.xlsx
+│   └── input.xlsx
 ├── templates/              # 页面模板
 │   ├── index.html
 │   ├── login.html
