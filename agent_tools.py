@@ -142,7 +142,7 @@ def update_employee(real_name: str, **fields) -> dict:
     }
 )
 def delete_employee(name: str) -> dict:
-    n = execute("UPDATE employees SET deleted=1, deleted_at=CURRENT_TIMESTAMP WHERE real_name=? AND deleted=0", (name,))
+    n = execute("UPDATE employees SET deleted=1, deleted_at=? WHERE real_name=? AND deleted=0", (now_local(), name))
     if n:
         return {"success": True, "message": f"已删除员工「{name}」，可在回收站中恢复"}
     return {"success": False, "message": f"未找到在职员工「{name}」"}

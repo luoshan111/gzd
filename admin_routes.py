@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash
 
 from app_common import admin_required, api_err, api_ok
 from backup_utils import create_backup, delete_backup, get_backup_path, list_backups
-from db import execute, query_all
+from db import execute, now_local, query_all
 from log_utils import db_log, read_logs, sys_log
 
 
@@ -118,8 +118,8 @@ def register_admin_routes(app):
 
         try:
             execute(
-                "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)",
-                (username, generate_password_hash(password), is_admin)
+                "INSERT INTO users (username, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?)",
+                (username, generate_password_hash(password), is_admin, now_local())
             )
         except sqlite3.IntegrityError:
             return api_err('用户名已存在', status=409)

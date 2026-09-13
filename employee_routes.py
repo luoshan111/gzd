@@ -6,7 +6,7 @@ from app_common import (
     EMPLOYEE_COLUMNS, RECYCLE_COLUMNS, admin_required, api_err, api_ok,
     get_employee_fields, login_required,
 )
-from db import execute, escape_like, get_pinyin_sx, query_all, query_one, query_paginated
+from db import execute, escape_like, get_pinyin_sx, now_local, query_all, query_one, query_paginated
 from log_utils import db_log
 
 
@@ -118,9 +118,9 @@ def register_employee_routes(app):
         姓名不存在或已删除时返回明确提示。
         """
         deleted = execute(
-            "UPDATE employees SET deleted = 1, deleted_at = CURRENT_TIMESTAMP, deleted_by = ? "
+            "UPDATE employees SET deleted = 1, deleted_at = ?, deleted_by = ? "
             "WHERE real_name = ? AND deleted = 0",
-            (session.get('username'), name)
+            (now_local(), session.get('username'), name)
         )
         if deleted:
             db_log.info('用户 %s 删除员工: %s', session.get('username'), name)

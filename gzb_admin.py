@@ -15,15 +15,15 @@ import sys
 
 from werkzeug.security import generate_password_hash
 
-from db import init_db, query_all, execute
+from db import init_db, now_local, query_all, execute
 
 
 def create_user(username: str, password: str, is_admin: bool = False) -> None:
     """创建新用户，密码哈希后存储；用户名重复时给出提示。"""
     try:
         execute(
-            "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)",
-            (username, generate_password_hash(password), 1 if is_admin else 0)
+            "INSERT INTO users (username, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?)",
+            (username, generate_password_hash(password), 1 if is_admin else 0, now_local())
         )
         role = '(管理员)' if is_admin else '(普通用户)'
         print(f"用户 '{username}' 创建成功！{role}")

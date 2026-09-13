@@ -14,6 +14,7 @@
 
 import sqlite3
 from contextlib import contextmanager
+from datetime import datetime
 
 from pypinyin import lazy_pinyin, Style
 
@@ -43,7 +44,7 @@ USERS_SCHEMA = '''
         username TEXT UNIQUE NOT NULL,              -- 用户名，唯一
         password_hash TEXT NOT NULL,                -- 密码哈希值
         is_admin INTEGER DEFAULT 0,                 -- 是否管理员，0否1是
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- 创建时间
+        created_at TIMESTAMP DEFAULT (datetime('now','localtime'))  -- 创建时间
     )
 '''
 
@@ -136,6 +137,15 @@ def _migrate_employees(conn: sqlite3.Connection) -> None:
 # ---------------------------------------------------------------------------
 # 领域工具
 # ---------------------------------------------------------------------------
+
+def now_local() -> str:
+    """
+    当前本地时间字符串（'YYYY-MM-DD HH:MM:SS'）。
+    SQLite 的 CURRENT_TIMESTAMP 返回 UTC 时间，比北京时间早 8 小时，
+    所有写入数据库的时间戳请统一使用本函数。
+    """
+    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
 
 def get_pinyin_sx(name: str) -> str:
     """获取中文姓名的拼音首字母，如 "张三" -> "zs"。"""
