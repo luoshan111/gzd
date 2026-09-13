@@ -1,10 +1,18 @@
 ﻿import json
-from db import query_all, query_one, execute, get_pinyin_sx, query_paginated
+import os
+import tempfile
+import time
+import uuid
+from db import query_all, query_one, execute, get_pinyin_sx, now_local, query_paginated
 from app_common import EMPLOYEE_COLUMNS
 from excel_utils import export_employees, read_employee_excel, classify_import_rows, import_employee_rows, summarize_import_rows
 from backup_utils import create_backup, list_backups
 from log_utils import read_logs
-import config
+
+# Agent 导出临时目录：每次导出用「时间戳 + 随机后缀」命名，并发导出互不覆盖；
+# 超过 TTL 的历史文件在下一次导出时自动清理。
+EXPORT_TEMP_DIR = os.path.join(tempfile.gettempdir(), 'gzd_exports')
+EXPORT_TEMP_TTL_SECONDS = 24 * 3600
 
 # ── 工具注册表 ──────────────────────────────────────────────
 
@@ -204,9 +212,21 @@ def list_recycle_bin(page: int = 1, page_size: int = 20) -> dict:
     )
     return result
 
+def _cleanup_agent_exports():
+    """删除超过 TTL 的历史导出临时文件（尽力而为，失败不影响导出）。"""
+    try:
+        cutoff = time.time() - EXPORT_TEMP_TTL_SECONDS
+        for name in os.listdir(EXPORT_TEMP_DIR):
+            path = os.path.join(EXPORT_TEMP_DIR, name)
+            if os.path.isfile(path) and os.path.getmtime(path) < cutoff:
+                os.remove(path)
+    except OSError:
+        pass
+
+
 @tool(
     name="export_employees",
-    description="按姓名列表导出员工信息到 Excel 文件。返回导出结果摘要。",
+    description="按姓名列表导出员工信息到 Excel 文件。返回导出结果摘要和文件保存路径。",
     parameters={
         "type": "object",
         "properties": {
@@ -222,8 +242,18 @@ def list_recycle_bin(page: int = 1, page_size: int = 20) -> dict:
 def export_employees_tool(names: list) -> dict:
     if not names:
         return {"success": False, "message": "请提供要导出的姓名列表"}
-    total, matched = export_employees(names, config.MANUAL_OUTPUT_XLSX)
-    return {"success": True, "message": f"导出完成，共 {total} 人，匹配到 {matched} 人", "total": total, "matched": matched, "file": "shuchu.xlsx"}
+    os.makedirs(EXPORT_TEMP_DIR, exist_ok=True)
+    _cleanup_agent_exports()
+    # 每次导出使用唯一文件名（时间戳 + 随机后缀），多个用户并发导出互不覆盖
+    stamp = time.strftime('%Y%m%d_%H%M%S')
+    filename = f"导出信息_{stamp}_{uuid.uuid4().hex[:6]}.xlsx"
+    total, matched = export_employees(names, os.path.join(EXPORT_TEMP_DIR, filename))
+    return {
+        "success": True,
+        "message": f"导出完成，共 {total} 人，匹配到 {matched} 人，文件已保存到 {EXPORT_TEMP_DIR}（保留 24 小时后自动清理）",
+        "total": total, "matched": matched,
+        "file": filename, "dir": EXPORT_TEMP_DIR,
+    }
 
 @tool(
     name="batch_update_employees",

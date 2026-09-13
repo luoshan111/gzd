@@ -1,16 +1,20 @@
-"""Excel 导入、导出和文件下载 API。"""
+"""Excel 导入、导出 API。"""
 
 import os
+from datetime import datetime
 
 from flask import request, send_file, session
 
 import config
 from app_common import ALLOWED_UPLOAD_EXTENSIONS, api_err, api_ok, login_required
 from excel_utils import (
-    IMPORT_COLUMNS, classify_import_rows, export_employees, import_employee_rows,
+    IMPORT_COLUMNS, classify_import_rows, build_export_buffer, import_employee_rows,
     read_employee_excel, read_names, summarize_import_rows,
 )
 from log_utils import db_log, sys_log
+
+# 导出 Excel 的 MIME 类型
+EXPORT_MIMETYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 
 def register_import_export_routes(app):
@@ -77,10 +81,28 @@ def register_import_export_routes(app):
 
     # ==================== Excel 导出 API ====================
 
+    def _send_export(names: list, username: str, action: str):
+        """
+        按姓名列表生成导出 Excel 并作为附件直接返回。
+        全程在内存中完成，不写共享文件，多个用户并发导出互不影响。
+        """
+        try:
+            buf, total, matched = build_export_buffer(names)
+        except Exception:
+            sys_log.exception('%s失败', action)
+            return api_err('导出失败，请查看系统日志', status=500)
+
+        sys_log.info('用户 %s %s: 共 %s 条，匹配 %s 条', username, action, total, matched)
+        stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        return send_file(
+            buf, as_attachment=True, download_name=f'导出信息_{stamp}.xlsx',
+            mimetype=EXPORT_MIMETYPE,
+        )
+
     @app.route('/api/export', methods=['POST'])
     @login_required
     def export_excel():
-        """读取 input.xlsx 中的姓名列表，匹配数据库信息后导出到 output.xlsx。"""
+        """读取 input.xlsx 中的姓名列表，匹配数据库信息后直接返回 Excel 文件流。"""
         try:
             names = read_names(config.INPUT_XLSX)
         except FileNotFoundError as e:
@@ -89,36 +111,20 @@ def register_import_export_routes(app):
         if not names:
             return api_err('input.xlsx 中没有姓名数据')
 
-        try:
-            total, matched = export_employees(names, config.OUTPUT_XLSX)
-        except Exception as e:
-            sys_log.exception('导出 Excel 失败')
-            return api_err('导出失败，请查看系统日志', status=500)
-
-        sys_log.info('用户 %s 批量导出 Excel: 共 %s 条，匹配 %s 条',
-                    session.get('username'), total, matched)
-        return api_ok('导出成功', file=config.OUTPUT_XLSX, total=total, matched=matched)
+        return _send_export(names, session.get('username'), '批量导出 Excel')
 
 
     @app.route('/api/export-manual', methods=['POST'])
     @login_required
     def export_manual_excel():
-        """接收前端输入的姓名列表，匹配数据库信息后导出到 shuchu.xlsx。"""
+        """接收前端输入的姓名列表，匹配数据库信息后直接返回 Excel 文件流。"""
         data = request.get_json(silent=True) or {}
         names = [str(n).strip() for n in data.get('names', []) if str(n).strip()]
 
         if not names:
             return api_err('请提供姓名列表')
 
-        try:
-            total, matched = export_employees(names, config.MANUAL_OUTPUT_XLSX)
-        except Exception as e:
-            sys_log.exception('手动导出 Excel 失败')
-            return api_err('导出失败，请查看系统日志', status=500)
-
-        sys_log.info('用户 %s 手动导出 Excel: 共 %s 条，匹配 %s 条',
-                    session.get('username'), total, matched)
-        return api_ok('导出成功', file=config.MANUAL_OUTPUT_XLSX, total=total, matched=matched)
+        return _send_export(names, session.get('username'), '手动导出 Excel')
 
 
     @app.route('/api/input-preview')
@@ -134,17 +140,3 @@ def register_import_export_routes(app):
             return api_err('读取 input.xlsx 失败，请查看系统日志', status=500)
 
         return api_ok(data=[{'姓名': n} for n in names], columns=['姓名'])
-
-
-    @app.route('/api/download/<filename>')
-    @login_required
-    def download_file(filename):
-        """
-        下载导出的 Excel 文件。
-        仅允许下载白名单内的文件（output.xlsx / shuchu.xlsx），防止路径穿越攻击。
-        """
-        path = config.ALLOWED_DOWNLOADS.get(filename)
-        if not path or not os.path.exists(path):
-            return api_err('文件不存在或不允许下载', status=404)
-        sys_log.info('用户 %s 下载文件: %s', session.get('username'), filename)
-        return send_file(path, as_attachment=True)

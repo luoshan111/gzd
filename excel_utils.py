@@ -3,6 +3,7 @@ Excel 导入导出共享逻辑
 供 Flask 导出接口与 gzb_output.py 等脚本共用。
 """
 
+import io
 import os
 import re
 
@@ -70,16 +71,30 @@ def build_employee_dataframe(names: list) -> pd.DataFrame:
     return pd.DataFrame(records, columns=EXPORT_COLUMNS)
 
 
-def export_employees(names: list, output_path: str) -> tuple:
+def build_export_buffer(names: list) -> tuple:
     """
-    按姓名列表导出员工信息到 Excel。
+    按姓名列表生成导出 Excel，写入内存缓冲区（不落盘，供 HTTP 直接返回）。
 
-    返回: (总条数, 数据库匹配到的条数)
+    返回: (BytesIO 缓冲区, 总条数, 数据库匹配到的条数)
     """
     df = build_employee_dataframe(names)
     matched = int((df['身份证号'] != '').sum()) if len(df) else 0
-    df.to_excel(output_path, index=False, engine='openpyxl')
-    return len(df), matched
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False, engine='openpyxl')
+    buf.seek(0)
+    return buf, len(df), matched
+
+
+def export_employees(names: list, output_path: str) -> tuple:
+    """
+    按姓名列表导出员工信息到 Excel 文件（供命令行脚本使用）。
+
+    返回: (总条数, 数据库匹配到的条数)
+    """
+    buf, total, matched = build_export_buffer(names)
+    with open(output_path, 'wb') as f:
+        f.write(buf.getvalue())
+    return total, matched
 
 
 # ---------------------------------------------------------------------------

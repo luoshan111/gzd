@@ -605,14 +605,36 @@
             ['realName','idNumber','bankAccount','bankAddress','phone'].forEach(id => document.getElementById(id).value='');
         }
 
-        /* ===== Excel 导出 ===== */
-        async function exportExcel() {
+        /* ===== Excel 导出（服务端直接返回文件流，本地保存为下载） ===== */
+        function saveBlobAs(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(()=>URL.revokeObjectURL(url), 5000);
+        }
+        function fileNameFromDisposition(disposition, fallback) {
+            let m = disposition && disposition.match(/filename\*=UTF-8''([^;]+)/i);
+            if (m) { try { return decodeURIComponent(m[1]); } catch (e) {} }
+            m = disposition && disposition.match(/filename="?([^";]+)"?/i);
+            return m ? m[1] : fallback;
+        }
+        async function requestExport(url, options, msgId) {
             try {
-                const r = await fetch('/api/export', {method:'POST'});
-                const d = await r.json();
-                if (d.success) { showMessage('exportMessage','导出成功！准备下载...','success'); setTimeout(()=>{ window.location.href='/api/download/output.xlsx'; },1000); }
-                else showMessage('exportMessage',d.message,'error');
-            } catch (e) { showMessage('exportMessage','导出失败: '+e.message,'error'); }
+                const r = await fetch(url, options);
+                if (!r.ok) {
+                    let m = '导出失败';
+                    try { m = (await r.json()).message || m; } catch (e) {}
+                    showMessage(msgId, m, 'error'); return;
+                }
+                const blob = await r.blob();
+                saveBlobAs(blob, fileNameFromDisposition(r.headers.get('Content-Disposition'), '导出信息.xlsx'));
+                showMessage(msgId, '导出成功，已开始下载', 'success');
+            } catch (e) { showMessage(msgId, '导出失败: '+e.message, 'error'); }
+        }
+        function exportExcel() {
+            showMessage('exportMessage', '正在导出...', 'info');
+            requestExport('/api/export', {method:'POST'}, 'exportMessage');
         }
         async function loadInputPreview() {
             try {
@@ -646,12 +668,8 @@
         }
         async function exportManualExcel() {
             if (!nameList.length) { showMessage('manualExportMessage','请先添加姓名','error'); return; }
-            try {
-                const r = await fetch('/api/export-manual', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({names:nameList})});
-                const d = await r.json();
-                if (d.success) { showMessage('manualExportMessage','导出成功！准备下载...','success'); setTimeout(()=>{ window.location.href='/api/download/shuchu.xlsx'; },1000); }
-                else showMessage('manualExportMessage',d.message,'error');
-            } catch (e) { showMessage('manualExportMessage','导出失败: '+e.message,'error'); }
+            showMessage('manualExportMessage', '正在导出...', 'info');
+            requestExport('/api/export-manual', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({names:nameList})}, 'manualExportMessage');
         }
 
         /* ===== Excel 导入 ===== */

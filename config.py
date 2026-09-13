@@ -6,8 +6,7 @@
     GZD_SECRET_KEY         Flask session 密钥（生产环境务必设置）
     GZD_DB_PATH            SQLite 数据库文件路径
     GZD_INPUT_XLSX         批量导出的输入 Excel（姓名列表）
-    GZD_OUTPUT_XLSX        批量导出的输出 Excel
-    GZD_MANUAL_OUTPUT_XLSX 手动导出的输出 Excel
+    GZD_OUTPUT_XLSX        命令行脚本 gzb_output.py 的输出 Excel
     GZD_PORT               服务端口，默认 5001
     GZD_DEBUG              是否开启调试模式，默认开（设为 0 关闭）
     GZD_LOG_DIR            日志文件目录（按天滚动，保留 30 天）
@@ -29,16 +28,10 @@ def _env_path(env_name: str, default_filename: str) -> str:
 SECRET_KEY = os.environ.get('GZD_SECRET_KEY', 'gongzidan_secret_key_2026')
 
 # 数据库与 Excel 文件路径
+# 网页导出在内存中直接返回文件流，不再落盘；OUTPUT_XLSX 仅供命令行脚本 gzb_output.py 使用。
 DB_PATH = _env_path('GZD_DB_PATH', 'data/sjk.db')
 INPUT_XLSX = _env_path('GZD_INPUT_XLSX', 'data/input.xlsx')
 OUTPUT_XLSX = _env_path('GZD_OUTPUT_XLSX', 'data/output.xlsx')
-MANUAL_OUTPUT_XLSX = _env_path('GZD_MANUAL_OUTPUT_XLSX', 'data/shuchu.xlsx')
-
-# 允许通过 /api/download/<filename> 下载的文件（按文件名白名单，防止路径穿越攻击）
-ALLOWED_DOWNLOADS = {
-    os.path.basename(OUTPUT_XLSX): OUTPUT_XLSX,
-    os.path.basename(MANUAL_OUTPUT_XLSX): MANUAL_OUTPUT_XLSX,
-}
 
 # 服务运行参数
 PORT = int(os.environ.get('GZD_PORT', '5001'))
