@@ -185,6 +185,18 @@
         .badge-restore { background: #d1fae5; color: #059669; }
         .badge-error { background: #fee2e2; color: #dc2626; }
         .badge-total { background: #f1f5f9; color: #475569; }
+        .import-selection {
+            display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+            margin: 16px 0 12px; padding: 12px 14px; border: 1px solid #e0e7ff; border-radius: 9px; background: #f8faff;
+        }
+        .import-selection-copy { min-width: 0; }
+        .import-selection-title { color: #334155; font-size: 0.8125rem; font-weight: 600; }
+        .import-selection-hint { margin-top: 3px; color: #64748b; font-size: 0.75rem; }
+        .import-selection select {
+            min-width: 148px; padding: 8px 30px 8px 10px; border: 1px solid #c7d2fe; border-radius: 7px;
+            background: #fff; color: #3730a3; font-size: 0.8125rem; font-weight: 600; outline: none; cursor: pointer;
+        }
+        .import-selection select:focus-visible { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.12); }
         .row-error td { background: #fef2f2; }
         .status-badge {
             display: inline-block; padding: 2px 8px; border-radius: 4px;
@@ -254,13 +266,73 @@
         @keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
         /* Upload area */
         .upload-area {
-            border: 2px dashed #e2e8f0; border-radius: 8px; padding: 24px;
+            border: 2px dashed #e2e8f0; border-radius: 10px; padding: 22px 24px;
             text-align: center; cursor: pointer; transition: all 0.15s;
         }
         .upload-area:hover { border-color: #4f46e5; background: #f8faff; }
         .upload-area input[type="file"] { display: none; }
         .upload-area .icon { font-size: 2rem; margin-bottom: 8px; opacity: 0.4; }
         .upload-area p { font-size: 0.8125rem; color: #64748b; }
+        .upload-area.selected {
+            display: flex; align-items: center; gap: 14px; padding: 16px 18px;
+            text-align: left; border-style: solid; border-color: #86efac; background: #f0fdf4;
+        }
+        .upload-area.selected:hover { border-color: #4ade80; background: #ecfdf3; }
+        .upload-excel-icon {
+            display: none; flex: 0 0 42px; width: 42px; height: 48px; position: relative;
+            align-items: center; justify-content: center; border-radius: 6px 6px 8px 8px;
+            background: #217346; color: #fff; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em;
+            box-shadow: inset 0 -10px 0 rgba(0,0,0,0.08);
+        }
+        .upload-excel-icon::after {
+            content: ''; position: absolute; top: 0; right: 0; width: 11px; height: 11px;
+            background: #bbf7d0; clip-path: polygon(0 0, 100% 100%, 0 100%);
+        }
+        .upload-file-details { display: none; min-width: 0; flex: 1; }
+        .upload-file-status { display: flex; align-items: center; gap: 6px; color: #166534; font-size: 0.75rem; font-weight: 600; }
+        .upload-file-status::before {
+            content: '✓'; display: inline-flex; align-items: center; justify-content: center;
+            width: 16px; height: 16px; border-radius: 50%; background: #22c55e; color: #fff; font-size: 0.66rem;
+        }
+        .upload-file-name { margin-top: 4px; color: #1e293b; font-size: 0.875rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .upload-file-hint { margin-top: 3px; color: #64748b; font-size: 0.75rem; }
+        .upload-change-hint { display: none; color: #15803d; font-size: 0.75rem; white-space: nowrap; }
+        .upload-area.selected .icon, .upload-area.selected .upload-prompt { display: none; }
+        .upload-area.selected .upload-excel-icon, .upload-area.selected .upload-file-details, .upload-area.selected .upload-change-hint { display: flex; }
+        /* Import confirmation dialog */
+        .import-confirm-overlay {
+            position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center;
+            padding: 24px; background: rgba(15, 23, 42, 0.42); opacity: 0; visibility: hidden;
+            transition: opacity 0.18s ease, visibility 0.18s ease;
+        }
+        .import-confirm-overlay.visible { opacity: 1; visibility: visible; }
+        .import-confirm-dialog {
+            width: min(100%, 430px); overflow: hidden; border: 1px solid #e2e8f0; border-radius: 16px;
+            background: #fff; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2); transform: translateY(10px) scale(0.985);
+            transition: transform 0.18s ease;
+        }
+        .import-confirm-overlay.visible .import-confirm-dialog { transform: translateY(0) scale(1); }
+        .import-confirm-accent { height: 4px; background: linear-gradient(90deg, #4f46e5, #2563eb, #0ea5e9); }
+        .import-confirm-body { padding: 26px 28px 20px; }
+        .import-confirm-mark {
+            display: flex; align-items: center; justify-content: center; width: 46px; height: 46px; margin-bottom: 16px;
+            border-radius: 14px; background: #eef2ff; color: #4f46e5;
+        }
+        .import-confirm-mark svg { width: 25px; height: 25px; }
+        .import-confirm-title { color: #0f172a; font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; }
+        .import-confirm-copy { margin-top: 8px; color: #64748b; font-size: 0.875rem; line-height: 1.65; }
+        .import-confirm-count {
+            display: inline-flex; align-items: center; margin: 16px 0 2px; padding: 8px 12px;
+            border: 1px solid #c7d2fe; border-radius: 8px; background: #f5f7ff; color: #3730a3; font-size: 0.8125rem; font-weight: 600;
+        }
+        .import-confirm-count strong { margin: 0 3px; color: #4338ca; font-size: 1rem; }
+        .import-confirm-note { display: flex; gap: 8px; margin-top: 16px; padding: 10px 12px; border-radius: 8px; background: #f8fafc; color: #64748b; font-size: 0.75rem; line-height: 1.5; }
+        .import-confirm-note svg { flex: 0 0 16px; width: 16px; height: 16px; color: #64748b; margin-top: 1px; }
+        .import-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 28px 22px; border-top: 1px solid #f1f5f9; }
+        .import-confirm-actions .btn { min-width: 88px; justify-content: center; }
+        .import-confirm-actions .btn:focus-visible { outline: 3px solid rgba(79, 70, 229, 0.28); outline-offset: 2px; }
+        .import-confirm-actions .btn-primary { box-shadow: 0 4px 10px rgba(79, 70, 229, 0.18); }
+        .import-confirm-actions .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(79, 70, 229, 0.24); }
         /* Section title */
         .section-title {
             font-size: 0.875rem; font-weight: 600; color: #334155;
@@ -275,6 +347,12 @@
             .tabs-bar { padding: 0 16px; overflow-x: auto; }
             .form-grid { grid-template-columns: 1fr; }
             .log-row { grid-template-columns: 1fr; gap: 4px; }
+            .import-confirm-overlay { padding: 16px; }
+            .import-confirm-body { padding: 22px 20px 18px; }
+            .import-confirm-actions { padding: 14px 20px 18px; }
+            .import-confirm-actions .btn { flex: 1; }
+            .import-selection { align-items: stretch; }
+            .import-selection select { width: 100%; }
         }
     </style>
 </head>
@@ -378,6 +456,21 @@
         <!-- Export Panel -->
         <div id="export" class="panel">
             <div class="card">
+                <div class="card-header">手动输入导出</div>
+                <div class="card-body">
+                    <div id="manualExportMessage"></div>
+                    <div class="search-row">
+                        <input type="text" id="manualNameInput" class="search-input"
+                               placeholder="输入姓名后按回车添加..." onkeypress="handleNameInput(event)">
+                        <button class="btn btn-outline" onclick="addName()">添加</button>
+                        <button class="btn btn-success" onclick="exportManualExcel()">导出</button>
+                    </div>
+                    <div id="nameList" class="name-tags">
+                        <span style="color:#94a3b8;font-size:0.8125rem">暂无添加的姓名</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
                 <div class="card-header">文件匹配导出</div>
                 <div class="card-body">
                     <p style="font-size:0.8125rem;color:#64748b;margin-bottom:16px">
@@ -393,21 +486,6 @@
                     </div>
                 </div>
             </div>
-            <div class="card">
-                <div class="card-header">手动输入导出</div>
-                <div class="card-body">
-                    <div id="manualExportMessage"></div>
-                    <div class="search-row">
-                        <input type="text" id="manualNameInput" class="search-input"
-                               placeholder="输入姓名后按回车添加..." onkeypress="handleNameInput(event)">
-                        <button class="btn btn-outline" onclick="addName()">添加</button>
-                        <button class="btn btn-success" onclick="exportManualExcel()">导出</button>
-                    </div>
-                    <div id="nameList" class="name-tags">
-                        <span style="color:#94a3b8;font-size:0.8125rem">暂无添加的姓名</span>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- Import Panel -->
@@ -416,10 +494,17 @@
                 <div class="card-header">导入 Excel</div>
                 <div class="card-body">
                     <div id="importMessage"></div>
-                    <div class="upload-area" onclick="document.getElementById('importFile').click()">
+                    <div class="upload-area" id="importUploadArea" onclick="document.getElementById('importFile').click()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('importFile').click()}">
                         <div class="icon">&#128196;</div>
-                        <p>点击选择 Excel 文件</p>
-                        <input type="file" id="importFile" accept=".xlsx,.xls">
+                        <p class="upload-prompt">点击选择 Excel 文件</p>
+                        <div class="upload-excel-icon" aria-hidden="true">XLSX</div>
+                        <div class="upload-file-details">
+                            <div class="upload-file-status">Excel 文件已选中</div>
+                            <div class="upload-file-name" id="importFileName"></div>
+                            <div class="upload-file-hint">点击此处可重新选择文件</div>
+                        </div>
+                        <span class="upload-change-hint">更换文件</span>
+                        <input type="file" id="importFile" accept=".xlsx,.xls" onchange="updateImportFileState(this)">
                     </div>
                     <div style="margin-top:12px;display:flex;gap:10px">
                         <button class="btn btn-primary" onclick="previewImport()">解析预览</button>
@@ -427,6 +512,18 @@
                     <div id="importReport" style="display:none;margin-top:20px">
                         <div class="section-title">校验报告</div>
                         <div id="importSummary" class="summary-row"></div>
+                        <div class="import-selection">
+                            <div class="import-selection-copy">
+                                <div class="import-selection-title">选择导入范围</div>
+                                <div class="import-selection-hint" id="importSelectionHint">默认导入全部通过校验的记录</div>
+                            </div>
+                            <select id="importScope" onchange="updateImportSelection()" aria-label="选择导入范围">
+                                <option value="all">全部有效记录</option>
+                                <option value="new">仅导入新建</option>
+                                <option value="update">仅更新已有</option>
+                                <option value="restore">仅恢复已删除</option>
+                            </select>
+                        </div>
                         <div id="importTable"></div>
                         <div style="margin-top:16px">
                             <button class="btn btn-success" id="confirmImportBtn" onclick="confirmImport()" disabled>
@@ -468,6 +565,28 @@
     </div>
 
     <div class="toast-container" id="toastContainer"></div>
+
+    <div class="import-confirm-overlay" id="importConfirmModal" aria-hidden="true" onclick="if(event.target===this) closeImportConfirmModal()">
+        <section class="import-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="importConfirmTitle" aria-describedby="importConfirmDescription">
+            <div class="import-confirm-accent"></div>
+            <div class="import-confirm-body">
+                <div class="import-confirm-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m8 15 2.2 2.2L16 11.5"/></svg>
+                </div>
+                <h2 class="import-confirm-title" id="importConfirmTitle">确认导入记录？</h2>
+                <p class="import-confirm-copy" id="importConfirmDescription">已通过校验的数据将写入员工档案，并按照预览结果新增、更新或恢复记录。</p>
+                <div class="import-confirm-count">准备导入 <strong id="importConfirmCount">0</strong> 条有效记录</div>
+                <div class="import-confirm-note">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 10v5M12 7h.01"/></svg>
+                    <span>错误记录不会导入；导入完成后可在列表中继续查看和维护档案。</span>
+                </div>
+            </div>
+            <div class="import-confirm-actions">
+                <button class="btn btn-outline" type="button" onclick="closeImportConfirmModal()">再检查一下</button>
+                <button class="btn btn-primary" type="button" id="submitImportBtn" onclick="submitImport()">确认导入</button>
+            </div>
+        </section>
+    </div>
 
     <script>
         /* ===== 系统初始化 ===== */
@@ -676,6 +795,13 @@
         /* ===== Excel 导入 ===== */
         let importRows = [];
         const STATUS_LABELS = {new:'新增',update:'更新',restore:'恢复',error:'错误'};
+        function updateImportFileState(input) {
+            const area = document.getElementById('importUploadArea');
+            const name = document.getElementById('importFileName');
+            const file = input.files && input.files[0];
+            area.classList.toggle('selected', Boolean(file));
+            name.textContent = file ? file.name : '';
+        }
         async function previewImport() {
             const input = document.getElementById('importFile');
             if (!input.files.length) { showMessage('importMessage','请先选择 Excel 文件','error'); return; }
@@ -689,6 +815,7 @@
         }
         function renderImportReport(rows, summary) {
             document.getElementById('importReport').style.display='block';
+            document.getElementById('importScope').value = 'all';
             document.getElementById('importSummary').innerHTML = '<span class="badge badge-total">共 '+summary.total+' 行</span><span class="badge badge-new">新增 '+summary.new+'</span><span class="badge badge-update">更新 '+summary.update+'</span><span class="badge badge-restore">恢复 '+summary.restore+'</span><span class="badge badge-error">错误 '+summary.error+'</span>';
             let h = '<div class="table-wrap"><table><thead><tr><th>行号</th><th>姓名</th><th>身份证号</th><th>银行账号</th><th>银行地址</th><th>电话</th><th>状态</th><th>提示</th></tr></thead><tbody>';
             rows.forEach(row => {
@@ -698,26 +825,67 @@
             });
             h += '</tbody></table></div>';
             document.getElementById('importTable').innerHTML = h;
-            const vc = summary.new+summary.update+summary.restore;
+            updateImportSelection();
+        }
+        function getSelectedImportRows() {
+            const scope = document.getElementById('importScope').value;
+            return importRows.filter(row => row.status !== 'error' && (scope === 'all' || row.status === scope));
+        }
+        function updateImportSelection() {
+            const scope = document.getElementById('importScope').value;
+            const labels = {all: '默认导入全部通过校验的记录', new: '只导入状态为“新建”的记录，不会更新已有档案', update: '只更新已存在的员工档案，不会新建记录', restore: '只恢复已删除的员工档案'};
+            const selected = getSelectedImportRows();
+            document.getElementById('importSelectionHint').textContent = labels[scope] + ' · 当前 '+selected.length+' 条';
             const btn = document.getElementById('confirmImportBtn');
-            btn.disabled = vc===0;
-            btn.textContent = vc>0 ? '确认导入（'+vc+' 条有效记录）' : '没有可导入的有效记录';
+            btn.disabled = selected.length===0;
+            btn.textContent = selected.length>0 ? '确认导入（'+selected.length+' 条）' : '当前范围没有可导入记录';
         }
         async function confirmImport() {
-            const valid = importRows.filter(r=>r.status!=='error');
+            const valid = getSelectedImportRows();
             if (!valid.length) { showMessage('importMessage','没有可导入的有效数据','error'); return; }
-            if (!confirm('确认导入 '+valid.length+' 条记录吗？')) return;
+            showImportConfirmModal(valid.length);
+        }
+        let importConfirmTrigger = null;
+        function showImportConfirmModal(count) {
+            importConfirmTrigger = document.activeElement;
+            document.getElementById('importConfirmCount').textContent = count;
+            const modal = document.getElementById('importConfirmModal');
+            modal.classList.add('visible');
+            modal.setAttribute('aria-hidden', 'false');
+            document.getElementById('submitImportBtn').disabled = false;
+            document.getElementById('submitImportBtn').textContent = '确认导入';
+            setTimeout(() => document.getElementById('submitImportBtn').focus(), 0);
+        }
+        function closeImportConfirmModal() {
+            const modal = document.getElementById('importConfirmModal');
+            modal.classList.remove('visible');
+            modal.setAttribute('aria-hidden', 'true');
+            if (importConfirmTrigger) importConfirmTrigger.focus();
+        }
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && document.getElementById('importConfirmModal').classList.contains('visible')) {
+                closeImportConfirmModal();
+            }
+        });
+        async function submitImport() {
+            const valid = getSelectedImportRows();
+            if (!valid.length) { closeImportConfirmModal(); showMessage('importMessage','没有可导入的有效数据','error'); return; }
+            const submitBtn = document.getElementById('submitImportBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '正在导入...';
             try {
                 const r = await fetch('/api/import-confirm', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({rows:valid})});
                 const d = await r.json();
                 if (d.success) {
+                    closeImportConfirmModal();
                     showMessage('importMessage','导入完成：新增'+d.inserted+'条，更新'+d.updated+'条，恢复'+d.restored+'条，跳过'+d.skipped+'条','success');
                     document.getElementById('importReport').style.display='none';
                     document.getElementById('importFile').value='';
+                    updateImportFileState(document.getElementById('importFile'));
                     importRows=[];
                     toast('导入完成','success');
-                } else showMessage('importMessage',d.message,'error');
-            } catch (e) { showMessage('importMessage','导入失败: '+e.message,'error'); }
+                } else { showMessage('importMessage',d.message,'error'); submitBtn.disabled = false; submitBtn.textContent = '确认导入'; }
+            } catch (e) { showMessage('importMessage','导入失败: '+e.message,'error'); submitBtn.disabled = false; submitBtn.textContent = '确认导入'; }
         }
 
         /* ===== 操作日志 ===== */

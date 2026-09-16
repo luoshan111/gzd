@@ -7,8 +7,7 @@ import io
 import os
 import re
 
-import pandas as pd
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 
 from db import query_all, get_connection, get_pinyin_sx
 
@@ -46,9 +45,9 @@ def read_names(path: str, limit: int = None) -> list:
         wb.close()
 
 
-def build_employee_dataframe(names: list) -> pd.DataFrame:
+def build_employee_records(names: list) -> list:
     """
-    按姓名列表从数据库匹配员工信息，生成导出用 DataFrame。
+    按姓名列表从数据库匹配员工信息，生成导出用记录列表。
     一次性取出全表建立索引，避免逐姓名查询（N+1 问题）；
     只匹配在职记录（deleted = 0），数据库中不存在或已删除的姓名导出为空行。
     """
@@ -68,7 +67,7 @@ def build_employee_dataframe(names: list) -> pd.DataFrame:
             '银行地址': (emp['bank_address'] or '') if emp else '',
             '电话': (emp['phone'] or '') if emp else '',
         })
-    return pd.DataFrame(records, columns=EXPORT_COLUMNS)
+    return records
 
 
 def build_export_buffer(names: list, payroll: list = None) -> tuple:
@@ -84,28 +83,33 @@ def build_export_buffer(names: list, payroll: list = None) -> tuple:
 
     返回: (BytesIO 缓冲区, 总条数, 数据库匹配到的条数)
     """
-    df = build_employee_dataframe(names)
-    matched = int((df['身份证号'] != '').sum()) if len(df) else 0
+    records = build_employee_records(names)
+    matched = sum(1 for record in records if record['身份证号'])
     if payroll:
         by_name = {str(p.get('name', '')).strip(): p for p in payroll}
-        days_col, wage_col, total_col = [], [], []
-        for name in df['姓名']:
+        for record in records:
+            name = record['姓名']
             p = by_name.get(str(name).strip(), {})
             days = p.get('days')
             wage = p.get('daily_wage')
             total = p.get('total_wage')
             if total is None and days is not None and wage is not None:
                 total = round(days * wage, 2)
-            days_col.append(days if days is not None else None)
-            wage_col.append(wage if wage is not None else None)
-            total_col.append(total if total is not None else None)
-        df['考勤天数'] = days_col
-        df['每日工资'] = wage_col
-        df['总工资'] = total_col
+            record['考勤天数'] = days if days is not None else None
+            record['每日工资'] = wage if wage is not None else None
+            record['总工资'] = total if total is not None else None
+    columns = EXPORT_COLUMNS + (['考勤天数', '每日工资', '总工资'] if payroll else [])
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = '员工信息'
+    worksheet.append(columns)
+    for record in records:
+        worksheet.append([record.get(column, '') for column in columns])
     buf = io.BytesIO()
-    df.to_excel(buf, index=False, engine='openpyxl')
+    workbook.save(buf)
+    workbook.close()
     buf.seek(0)
-    return buf, len(df), matched
+    return buf, len(records), matched
 
 
 def export_employees(names: list, output_path: str) -> tuple:
@@ -143,8 +147,10 @@ STATUS_LABELS = {'new': '新增', 'update': '更新', 'restore': '恢复', 'erro
 def _clean_cell(value) -> str:
     """
     清洗单元格文本：转字符串并去空白；
-    数值单元格被 pandas 读出的小数尾巴（如 '13800000000.0'）还原为整数字符串。
+    数值单元格的小数尾巴（如 '13800000000.0'）还原为整数字符串。
     """
+    if value is None:
+        return ''
     text = str(value).strip()
     if re.fullmatch(r'\d+\.0', text):
         text = text[:-2]
@@ -163,26 +169,33 @@ def read_employee_excel(source) -> list:
     数值格式的单元格超过 15 位会被 Excel 自身截断，任何工具都无法还原。
     """
     try:
-        df = pd.read_excel(source, dtype=str).fillna('')
+        workbook = load_workbook(source, read_only=True, data_only=True)
+        worksheet = workbook.active
+        row_iter = worksheet.iter_rows(values_only=True)
+        headers = next(row_iter, None)
+        if not headers:
+            raise ValueError('文件中没有表头')
+        records = [dict(zip(headers, values)) for values in row_iter]
+        workbook.close()
     except Exception:
         raise ValueError('文件解析失败，请确认是有效的 .xlsx 文件') from None
 
     # 表头标准化：别名 -> 标准字段名
     renamed = {}
-    for col in df.columns:
+    for col in headers:
         key = str(col).strip()
         if key in HEADER_ALIASES:
             renamed[col] = HEADER_ALIASES[key]
-    df = df.rename(columns=renamed)
 
-    if 'real_name' not in df.columns:
+    if 'real_name' not in renamed.values():
         raise ValueError('缺少"姓名"列（表头支持：姓名 / real_name）')
 
     rows = []
-    for excel_row, record in enumerate(df.to_dict('records'), start=2):  # 数据从第 2 行起
+    for excel_row, record in enumerate(records, start=2):  # 数据从第 2 行起
         row = {'_row': excel_row}
         for field in IMPORT_COLUMNS:
-            row[field] = _clean_cell(record.get(field, ''))
+            source_column = next((column for column, target in renamed.items() if target == field), None)
+            row[field] = _clean_cell(record.get(source_column, '') if source_column else '')
         rows.append(row)
     return rows
 
