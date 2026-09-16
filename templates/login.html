@@ -5,138 +5,361 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>登录 - 员工信息管理系统</title>
     <style>
+        /* 与主界面统一的主色，但整体升级为企业级分栏登录页 */
+        :root {
+            --primary: #4f46e5;
+            --primary-deep: #4338ca;
+            --ink: #0f172a;
+            --ink-2: #334155;
+            --ink-3: #475569;
+            --muted: #94a3b8;
+            --line: #e2e8f0;
+            --field-bg: #f8fafc;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-            background: #f1f5f9;
+            background: #fff;
+            color: var(--ink);
             min-height: 100vh;
+        }
+        .login-page { display: flex; width: 100%; min-height: 100vh; }
+
+        /* ===== 左侧品牌区：深靛蓝企业色 + 点阵纹理 + 毛玻璃卡片 ===== */
+        .brand-side {
+            flex: 0 0 46%;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(155deg, #1e1b4b 0%, #312e81 48%, #4338ca 100%);
+            color: #fff;
+            padding: 52px 48px 40px;
+            display: flex;
+            flex-direction: column;
+        }
+        /* 内容层抬升到装饰元素之上 */
+        .brand-side > * { position: relative; z-index: 1; }
+        /* 点阵纹理：模拟数据网格，向左下淡出 */
+        .brand-pattern {
+            position: absolute; inset: 0;
+            background-image: radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1px);
+            background-size: 22px 22px;
+            -webkit-mask-image: linear-gradient(215deg, rgba(0,0,0,0.9), transparent 52%);
+            mask-image: linear-gradient(215deg, rgba(0,0,0,0.9), transparent 52%);
+            pointer-events: none;
+        }
+        .brand-glow {
+            position: absolute; border-radius: 50%;
+            filter: blur(10px); pointer-events: none;
+        }
+        .brand-glow.g1 { width: 380px; height: 380px; top: -140px; right: -110px; background: rgba(99,102,241,0.45); }
+        .brand-glow.g2 { width: 300px; height: 300px; bottom: -120px; left: -100px; background: rgba(124,58,237,0.35); }
+
+        .brand-top { display: flex; align-items: center; gap: 12px; }
+        .brand-logo {
+            width: 44px; height: 44px;
+            background: #fff;
+            color: var(--primary-deep);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: 700;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        }
+        .brand-name { font-size: 0.9375rem; font-weight: 600; letter-spacing: 1px; }
+        .brand-sub { font-size: 0.6875rem; color: rgba(199,210,254,0.75); letter-spacing: 1px; margin-top: 2px; }
+        .brand-badge {
+            margin-left: auto;
+            padding: 4px 12px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            border-radius: 999px;
+            font-size: 0.6875rem;
+            letter-spacing: 3px;
+            text-indent: 3px;
+            color: rgba(255,255,255,0.85);
+        }
+
+        .brand-hero { margin-top: 64px; }
+        .hero-kicker {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            letter-spacing: 4px;
+            color: #a5b4fc;
+            margin-bottom: 14px;
+        }
+        .brand-hero h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            line-height: 1.4;
+            letter-spacing: 1px;
+        }
+        .brand-hero p {
+            margin-top: 14px;
+            font-size: 0.875rem;
+            line-height: 1.9;
+            color: rgba(255,255,255,0.72);
+            max-width: 400px;
+        }
+
+        /* 毛玻璃功能卡片 */
+        .brand-cards {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .bcard {
+            display: flex; align-items: center; gap: 11px;
+            padding: 14px 15px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 12px;
+            backdrop-filter: blur(6px);
+        }
+        .bcard-icon {
+            width: 34px; height: 34px; flex-shrink: 0;
+            background: rgba(255,255,255,0.12);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px;
+        }
+        .bcard b { display: block; font-size: 0.8125rem; font-weight: 600; }
+        .bcard span { display: block; margin-top: 3px; font-size: 0.71875rem; color: rgba(255,255,255,0.62); }
+
+        .brand-foot {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.14);
+            display: flex;
+            gap: 22px;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 1px;
+        }
+
+        /* ===== 右侧表单区 ===== */
+        .form-side {
+            flex: 1;
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
-        }
-        .login-wrapper {
-            width: 100%; max-width: 400px;
-            background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.08);
-            overflow: hidden;
-        }
-        .login-header {
-            padding: 40px 32px 24px;
-            text-align: center;
-        }
-        .login-header .logo {
-            width: 56px; height: 56px;
-            background: #4f46e5;
-            border-radius: 14px;
-            display: inline-flex; align-items: center; justify-content: center;
-            margin-bottom: 20px;
-            font-size: 24px; color: #fff;
-        }
-        .login-header h1 {
-            font-size: 1.5rem; font-weight: 700;
-            color: #0f172a; margin-bottom: 6px;
-        }
-        .login-header p {
-            font-size: 0.875rem; color: #64748b;
-        }
-        .login-form {
-            padding: 0 32px 32px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .form-group label {
-            display: block; font-size: 0.8125rem; font-weight: 600;
-            color: #334155; margin-bottom: 6px;
-        }
-        .form-group input {
-            width: 100%; padding: 10px 14px;
-            background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 0.9375rem; color: #0f172a;
-            transition: all 0.15s;
-            outline: none;
-        }
-        .form-group input::placeholder { color: #94a3b8; }
-        .form-group input:focus {
-            border-color: #4f46e5;
-            box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+            padding: 48px 40px;
             background: #fff;
         }
-        .btn-login {
-            width: 100%; padding: 11px 20px;
-            background: #4f46e5; color: #fff;
-            border: none; border-radius: 8px;
-            font-size: 0.9375rem; font-weight: 600;
-            cursor: pointer; transition: all 0.15s;
-            margin-top: 4px;
-        }
-        .btn-login:hover { background: #4338ca; }
-        .btn-login:active { transform: scale(0.98); }
-        .btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-        .btn-login .spinner {
-            display: inline-block; width: 16px; height: 16px;
-            border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
-            border-radius: 50%; animation: spin 0.6s linear infinite;
-            vertical-align: middle; margin-right: 6px;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .form-inner { width: min(400px, 100%); }
+        .form-header h2 { font-size: 1.5rem; font-weight: 700; color: var(--ink); }
+        .form-header p { margin-top: 8px; font-size: 0.875rem; color: #64748b; }
+        .form-box { margin-top: 32px; }
+
         .message {
-            padding: 10px 14px; border-radius: 8px;
-            font-size: 0.8125rem; margin-bottom: 16px;
+            padding: 10px 14px;
+            font-size: 0.8125rem;
+            border-radius: 8px;
+            margin-bottom: 18px;
             display: none;
         }
         .message.show { display: block; }
-        .message.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-        .message.success { background: #f0fdf4; color: #059669; border: 1px solid #bbf7d0; }
-        .login-footer {
-            padding: 16px 32px;
-            text-align: center; font-size: 0.75rem;
-            color: #94a3b8;
-            border-top: 1px solid #f1f5f9;
+        .message.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+        .message.success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+
+        .form-group { margin-bottom: 18px; }
+        .form-group label {
+            display: block;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--ink-2);
+            margin-bottom: 6px;
+        }
+        .input-wrap { position: relative; }
+        .input-wrap svg {
+            position: absolute;
+            left: 12px; top: 50%;
+            transform: translateY(-50%);
+            width: 16px; height: 16px;
+            color: var(--muted);
+            pointer-events: none;
+        }
+        .input-wrap input {
+            width: 100%;
+            padding: 11px 12px 11px 38px;
+            border: 1.5px solid var(--line);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.875rem;
+            color: var(--ink);
+            background: var(--field-bg);
+            outline: none;
+            transition: all 0.15s;
+        }
+        .input-wrap input::placeholder { color: var(--muted); }
+        .input-wrap input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.08);
+            background: #fff;
+        }
+
+        .form-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 2px 0 22px;
+        }
+        .remember {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.8125rem;
+            color: var(--ink-3);
+            cursor: pointer;
+            user-select: none;
+        }
+        .remember input { width: 14px; height: 14px; accent-color: var(--primary); cursor: pointer; }
+        .form-hint { font-size: 0.75rem; color: var(--muted); }
+
+        .btn-login {
+            width: 100%;
+            padding: 13px 20px;
+            background: linear-gradient(135deg, #4f46e5 0%, #6d28d9 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            box-shadow: 0 8px 20px rgba(79,70,229,0.28);
+            transition: all 0.15s;
+        }
+        .btn-login .btn-text { letter-spacing: 6px; text-indent: 6px; }
+        .btn-login svg { width: 16px; height: 16px; transition: transform 0.15s; }
+        .btn-login:hover { box-shadow: 0 10px 26px rgba(79,70,229,0.38); transform: translateY(-1px); }
+        .btn-login:hover svg { transform: translateX(3px); }
+        .btn-login:active { transform: translateY(0) scale(0.99); }
+        .btn-login:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-login .spinner {
+            display: inline-block;
+            width: 15px; height: 15px;
+            border: 2px solid rgba(255,255,255,0.35);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .secure-note {
+            margin-top: 28px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--muted);
+            letter-spacing: 1px;
+        }
+        .form-foot {
+            position: absolute;
+            bottom: 22px; left: 0; right: 0;
+            text-align: center;
+            font-size: 0.71875rem;
+            color: #cbd5e1;
+            letter-spacing: 1px;
+        }
+
+        /* ===== 窄屏适配 ===== */
+        @media (max-width: 860px) {
+            .brand-side { display: none; }
+            .form-side { padding: 40px 24px; }
+            .form-foot { position: static; margin-top: 30px; }
         }
         @media (max-width: 480px) {
-            .login-form { padding: 0 20px 24px; }
-            .login-header { padding: 32px 20px 20px; }
+            .form-inner { width: 100%; }
         }
     </style>
 </head>
 <body>
-    <div class="login-wrapper">
-        <div class="login-header">
-            <div class="logo">S</div>
-            <h1>员工信息管理系统</h1>
-            <p>请登录以继续使用</p>
-        </div>
-        <form class="login-form" id="loginForm" onsubmit="return handleLogin(event)">
-            <div id="messageBox" class="message"></div>
-            <div class="form-group">
-                <label for="username">用户名</label>
-                <input type="text" id="username" name="username" placeholder="请输入用户名" required autocomplete="username">
+    <div class="login-page">
+        <aside class="brand-side">
+            <div class="brand-pattern" aria-hidden="true"></div>
+            <div class="brand-glow g1" aria-hidden="true"></div>
+            <div class="brand-glow g2" aria-hidden="true"></div>
+            <header class="brand-top">
+                <div class="brand-logo" aria-hidden="true">员</div>
+                <div>
+                    <div class="brand-name">员工信息管理系统</div>
+                    <div class="brand-sub">Employee Information Platform</div>
+                </div>
+                <span class="brand-badge">内部系统</span>
+            </header>
+            <div class="brand-hero">
+                <div class="hero-kicker">ENTERPRISE DATA PLATFORM</div>
+                <h1>让每一份员工档案<br>都井然有序</h1>
+                <p>集档案管理、批量导入导出、AI 智能助手于一体，为团队提供安全、高效、可追溯的员工数据底座</p>
             </div>
-            <div class="form-group">
-                <label for="password">密码</label>
-                <input type="password" id="password" name="password" placeholder="请输入密码" required autocomplete="current-password">
+            <div class="brand-cards">
+                <div class="bcard"><div class="bcard-icon">🗂️</div><div><b>档案集中管理</b><span>拼音首字母秒级检索</span></div></div>
+                <div class="bcard"><div class="bcard-icon">📊</div><div><b>批量导入导出</b><span>Excel 数据往来有据</span></div></div>
+                <div class="bcard"><div class="bcard-icon">🤖</div><div><b>AI 智能助手</b><span>自然语言办理业务</span></div></div>
+                <div class="bcard"><div class="bcard-icon">🛡️</div><div><b>回收站保护</b><span>误删数据一键恢复</span></div></div>
             </div>
-            <button type="submit" class="btn-login" id="loginBtn">登 录</button>
-        </form>
-        <div class="login-footer">
-            <p>仅限授权用户访问 · 联系管理员获取账户</p>
-        </div>
+            <footer class="brand-foot">
+                <span>🔒 数据加密存储</span>
+                <span>📝 操作全程留痕</span>
+                <span>👥 多角色权限管控</span>
+            </footer>
+        </aside>
+        <main class="form-side">
+            <div class="form-inner">
+                <div class="form-header">
+                    <h2>欢迎回来</h2>
+                    <p>请使用系统账户登录，继续管理员工数据</p>
+                </div>
+                <div class="form-box">
+                    <form id="loginForm" onsubmit="return handleLogin(event)">
+                        <div id="messageBox" class="message"></div>
+                        <div class="form-group">
+                            <label for="username">用户名</label>
+                            <div class="input-wrap">
+                                <input type="text" id="username" name="username" placeholder="请输入用户名" required autocomplete="username">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">密码</label>
+                            <div class="input-wrap">
+                                <input type="password" id="password" name="password" placeholder="请输入密码" required autocomplete="current-password">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <label class="remember"><input type="checkbox" id="rememberUser"> 记住用户名</label>
+                            <span class="form-hint">忘记密码请联系管理员</span>
+                        </div>
+                        <button type="submit" class="btn-login" id="loginBtn">
+                            <span class="btn-text">登 录</span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                        </button>
+                    </form>
+                    <div class="secure-note">🔒 数据加密传输 · 操作全程留痕</div>
+                </div>
+            </div>
+            <footer class="form-foot">© 2026 员工信息管理系统 · 仅限授权用户访问</footer>
+        </main>
     </div>
     <script>
+        const loginBtn = document.getElementById('loginBtn');
+        // 恢复记住的用户名
+        const savedUser = localStorage.getItem('gzd_remember_username');
+        if (savedUser) {
+            document.getElementById('username').value = savedUser;
+            document.getElementById('rememberUser').checked = true;
+        }
         async function handleLogin(event) {
             event.preventDefault();
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             const messageBox = document.getElementById('messageBox');
-            const loginBtn = document.getElementById('loginBtn');
             if (!username || !password) { showMessage('请输入用户名和密码', 'error'); return false; }
             loginBtn.disabled = true;
-            loginBtn.innerHTML = '<span class="spinner"></span>登录中...';
+            loginBtn.innerHTML = '<span class="spinner"></span>';
             try {
                 const response = await fetch('/api/login', {
                     method: 'POST',
@@ -145,19 +368,27 @@
                 });
                 const result = await response.json();
                 if (result.success) {
+                    if (document.getElementById('rememberUser').checked) {
+                        localStorage.setItem('gzd_remember_username', username);
+                    } else {
+                        localStorage.removeItem('gzd_remember_username');
+                    }
                     showMessage('登录成功，正在跳转...', 'success');
                     setTimeout(() => { window.location.href = '/'; }, 500);
                 } else {
                     showMessage(result.message || '登录失败', 'error');
-                    loginBtn.disabled = false;
-                    loginBtn.innerHTML = '登 录';
+                    resetBtn();
                 }
             } catch (error) {
                 showMessage('网络错误，请重试', 'error');
-                loginBtn.disabled = false;
-                loginBtn.innerHTML = '登 录';
+                resetBtn();
             }
             return false;
+        }
+        function resetBtn() {
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = '<span class="btn-text">登 录</span>'
+                + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
         }
         function showMessage(text, type) {
             const box = document.getElementById('messageBox');

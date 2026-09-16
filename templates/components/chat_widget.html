@@ -78,6 +78,16 @@
     .chat-msg.bot .chat-msg-bubble { background: #fff; color: #0f172a; border: 1px solid #e2e8f0; border-bottom-left-radius: 4px; }
     .chat-msg.user .chat-msg-bubble { background: #4f46e5; color: #fff; border-bottom-right-radius: 4px; }
 
+    /* 消息内的文件下载卡片 */
+    .chat-download-btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        margin-top: 8px; padding: 7px 12px;
+        background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe;
+        border-radius: 8px; font-size: 0.8125rem; font-weight: 500;
+        text-decoration: none; transition: all 0.15s; word-break: break-all;
+    }
+    .chat-download-btn:hover { background: #e0e7ff; border-color: #4f46e5; }
+
     /* 打字指示器 */
     .chat-typing { display: none; align-self: flex-start; padding: 8px 14px; }
     .chat-typing.show { display: flex; }
@@ -161,8 +171,8 @@
                 你好！我是 AI 助手，可以帮你：<br>
                 • 查询、添加、修改、删除员工<br>
                 • 批量导出员工信息<br>
-                • 创建数据库备份<br>
-                • 查看操作日志<br><br>
+                {% if session.get('is_admin') %}• 创建数据库备份<br>
+                • 查看操作日志<br>{% endif %}<br>
                 直接用自然语言告诉我你想做什么 👇
             </div>
         </div>
@@ -176,8 +186,10 @@
     <div class="chat-quick-actions">
         <button class="chat-quick-btn" onclick="quickSend('查看所有员工')">📋 员工列表</button>
         <button class="chat-quick-btn" onclick="quickSend('统计一下在职和删除的员工数量')">📊 数据统计</button>
+        {% if session.get('is_admin') %}
         <button class="chat-quick-btn" onclick="quickSend('创建一个数据库备份')">💾 备份</button>
         <button class="chat-quick-btn" onclick="quickSend('查看今天的操作日志')">📝 日志</button>
+        {% endif %}
     </div>
 
     <div class="chat-input-area">
@@ -227,6 +239,28 @@
         return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    // 在消息气泡里追加一个可再次点击的下载卡片
+    function appendDownloadCard(msgEl, dl) {
+        const bubble = msgEl.querySelector('.chat-msg-bubble');
+        if (!bubble) return;
+        const a = document.createElement('a');
+        a.className = 'chat-download-btn';
+        a.href = '/api/chat/download/' + encodeURIComponent(dl.token);
+        a.textContent = '⬇️ ' + dl.filename;
+        bubble.appendChild(document.createElement('br'));
+        bubble.appendChild(a);
+        scrollChat();
+    }
+
+    // 通过隐藏链接触发浏览器下载（服务端返回 Content-Disposition: attachment，不会跳转页面）
+    function triggerDownload(token) {
+        const a = document.createElement('a');
+        a.href = '/api/chat/download/' + encodeURIComponent(token);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
     function setTyping(show) {
         document.getElementById('chatTyping').classList.toggle('show', show);
         if (show) scrollChat();
@@ -261,7 +295,11 @@
             setTyping(false);
 
             if (data.success) {
-                addMessage('bot', data.reply);
+                const msgEl = addMessage('bot', data.reply);
+                (data.downloads || []).forEach(dl => {
+                    appendDownloadCard(msgEl, dl);
+                    triggerDownload(dl.token);
+                });
             } else {
                 addMessage('bot', '❌ ' + (data.message || '请求失败'));
             }

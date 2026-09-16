@@ -71,14 +71,37 @@ def build_employee_dataframe(names: list) -> pd.DataFrame:
     return pd.DataFrame(records, columns=EXPORT_COLUMNS)
 
 
-def build_export_buffer(names: list) -> tuple:
+def build_export_buffer(names: list, payroll: list = None) -> tuple:
     """
     按姓名列表生成导出 Excel，写入内存缓冲区（不落盘，供 HTTP 直接返回）。
+
+    payroll: 可选，对话中收集的每人工资考勤数据，
+             形如 [{"name": 姓名, "days": 考勤天数, "daily_wage": 每日工资, "total_wage": 总工资}]。
+             提供时在末尾追加三列：考勤天数 / 每日工资 / 总工资。
+             各列只填对话中明确说出的数字；总工资未说但天数和日工资齐全时按
+             每日工资 × 考勤天数 计算；只有总工资和天数时每日工资留空，不反推。
+             未提供数据的人三列留空。不提供 payroll 时不追加任何列。
 
     返回: (BytesIO 缓冲区, 总条数, 数据库匹配到的条数)
     """
     df = build_employee_dataframe(names)
     matched = int((df['身份证号'] != '').sum()) if len(df) else 0
+    if payroll:
+        by_name = {str(p.get('name', '')).strip(): p for p in payroll}
+        days_col, wage_col, total_col = [], [], []
+        for name in df['姓名']:
+            p = by_name.get(str(name).strip(), {})
+            days = p.get('days')
+            wage = p.get('daily_wage')
+            total = p.get('total_wage')
+            if total is None and days is not None and wage is not None:
+                total = round(days * wage, 2)
+            days_col.append(days if days is not None else None)
+            wage_col.append(wage if wage is not None else None)
+            total_col.append(total if total is not None else None)
+        df['考勤天数'] = days_col
+        df['每日工资'] = wage_col
+        df['总工资'] = total_col
     buf = io.BytesIO()
     df.to_excel(buf, index=False, engine='openpyxl')
     buf.seek(0)

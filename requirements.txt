@@ -4,3 +4,5 @@ openpyxl
 pypinyin
 Werkzeug
 openai
+# openai<1.55.3 passes "proxies" to httpx, which httpx>=0.28 removed
+httpx<0.28

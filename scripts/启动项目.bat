@@ -44,6 +44,17 @@ if errorlevel 1 (
 
 echo 正在启动员工信息管理系统...
 echo.
+
+REM 若服务已在运行，提示后退出，避免端口冲突报错
+netstat -ano | findstr /c:":5001" | findstr /c:"LISTENING" >nul 2>&1
+if not errorlevel 1 (
+    echo [提示] 服务已经在运行中，请直接访问: http://127.0.0.1:5001
+    echo 如需重启服务，请先运行 scripts\关闭项目.bat
+    echo.
+    pause
+    exit /b 0
+)
+
 echo 启动成功后，请访问: http://127.0.0.1:5001
 echo 局域网其他设备请访问: http://本机IP地址:5001
 echo.
