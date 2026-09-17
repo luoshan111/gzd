@@ -1,6 +1,13 @@
-"""Excel 导入、导出 API。"""
+"""Excel 导入、导出与智能模板填充 API。"""
 
+import hashlib
+import io
+import json
 import os
+import re
+import threading
+import time
+import uuid
 from datetime import datetime
 
 from flask import request, send_file, session
@@ -12,9 +19,108 @@ from excel_utils import (
     read_employee_excel, read_names, summarize_import_rows,
 )
 from log_utils import db_log, sys_log
+from smart_import_service import execute_smart_import, prepare_smart_import
+from smart_fill_service import (
+    MAX_FILL_ROWS, TemplateAnalysisError, TemplateFillError, fill_template, prepare_template,
+)
 
 # 导出 Excel 的 MIME 类型
 EXPORT_MIMETYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+SMART_FILL_PREVIEW_TTL_SECONDS = 10 * 60
+SMART_FILL_PREVIEW_MAX_ENTRIES = 20
+_smart_fill_preview_store = {}
+_smart_fill_preview_lock = threading.Lock()
+_smart_import_preview_store = {}
+_smart_import_preview_lock = threading.Lock()
+
+
+def _store_smart_fill_preview(user_id, template_digest, names, analysis) -> str:
+    now = time.time()
+    with _smart_fill_preview_lock:
+        expired = [
+            token for token, item in _smart_fill_preview_store.items()
+            if now - item['created'] > SMART_FILL_PREVIEW_TTL_SECONDS
+        ]
+        for token in expired:
+            del _smart_fill_preview_store[token]
+        while len(_smart_fill_preview_store) >= SMART_FILL_PREVIEW_MAX_ENTRIES:
+            oldest = min(_smart_fill_preview_store,
+                         key=lambda token: _smart_fill_preview_store[token]['created'])
+            del _smart_fill_preview_store[oldest]
+        token = uuid.uuid4().hex
+        _smart_fill_preview_store[token] = {
+            'user_id': user_id,
+            'template_digest': template_digest,
+            'names': names,
+            'analysis': analysis,
+            'created': now,
+        }
+    return token
+
+
+def _get_smart_fill_preview(token: str, user_id):
+    now = time.time()
+    with _smart_fill_preview_lock:
+        item = _smart_fill_preview_store.get(token)
+        if not item or item['user_id'] != user_id:
+            return None
+        if now - item['created'] > SMART_FILL_PREVIEW_TTL_SECONDS:
+            del _smart_fill_preview_store[token]
+            return None
+        return item
+
+
+def _remove_smart_fill_preview(token: str) -> None:
+    with _smart_fill_preview_lock:
+        _smart_fill_preview_store.pop(token, None)
+
+
+def _store_smart_import_preview(user_id, template_digest, analysis) -> str:
+    now = time.time()
+    with _smart_import_preview_lock:
+        expired = [
+            token for token, item in _smart_import_preview_store.items()
+            if now - item['created'] > SMART_FILL_PREVIEW_TTL_SECONDS
+        ]
+        for token in expired:
+            del _smart_import_preview_store[token]
+        while len(_smart_import_preview_store) >= SMART_FILL_PREVIEW_MAX_ENTRIES:
+            oldest = min(
+                _smart_import_preview_store,
+                key=lambda token: _smart_import_preview_store[token]['created'],
+            )
+            del _smart_import_preview_store[oldest]
+        token = uuid.uuid4().hex
+        _smart_import_preview_store[token] = {
+            'user_id': user_id,
+            'template_digest': template_digest,
+            'analysis': analysis,
+            'created': now,
+        }
+    return token
+
+
+def _get_smart_import_preview(token: str, user_id):
+    now = time.time()
+    with _smart_import_preview_lock:
+        item = _smart_import_preview_store.get(token)
+        if not item or item['user_id'] != user_id:
+            return None
+        if now - item['created'] > SMART_FILL_PREVIEW_TTL_SECONDS:
+            del _smart_import_preview_store[token]
+            return None
+        return item
+
+
+def _remove_smart_import_preview(token: str) -> None:
+    with _smart_import_preview_lock:
+        _smart_import_preview_store.pop(token, None)
+
+
+def _smart_fill_filename(original_filename: str) -> str:
+    original_stem = os.path.splitext(os.path.basename(original_filename))[0]
+    safe_stem = re.sub(r'[\\/:*?"<>|\r\n]+', '_', original_stem).strip(' .') or '工资表'
+    return f'{safe_stem}_已填.xlsx'
 
 
 def register_import_export_routes(app):
@@ -79,6 +185,83 @@ def register_import_export_routes(app):
         return api_ok('导入完成', **result)
 
 
+    @app.route('/api/smart-import-preview', methods=['POST'])
+    @login_required
+    def smart_import_preview():
+        """识别任意员工信息表的字段映射，并返回新增/更新/恢复预览。"""
+        file = request.files.get('file')
+        if not file or not file.filename:
+            return api_err('请选择要智能导入的 Excel 文件')
+        if os.path.splitext(file.filename)[1].lower() not in ALLOWED_UPLOAD_EXTENSIONS:
+            return api_err('智能导入仅支持 .xlsx 格式文件')
+
+        try:
+            template_bytes = file.read()
+            analysis, preview = prepare_smart_import(template_bytes)
+        except (TemplateAnalysisError, TemplateFillError) as exc:
+            sys_log.warning('用户 %s 智能导入预览未完成: %s', session.get('username'), exc)
+            return api_err(str(exc), status=422)
+        except Exception:
+            sys_log.exception('用户 %s 智能导入预览失败', session.get('username'))
+            return api_err('智能导入预览失败，请查看系统日志；标准导入仍可继续使用', status=500)
+
+        token = _store_smart_import_preview(
+            session.get('user_id'), hashlib.sha256(template_bytes).hexdigest(), analysis,
+        )
+        sys_log.info(
+            '用户 %s 完成智能导入预览: 文件=%s, 总行=%s, 新增=%s, 更新=%s, 恢复=%s, 错误=%s',
+            session.get('username'), file.filename, preview['summary']['total'],
+            preview['summary']['new'], preview['summary']['update'],
+            preview['summary']['restore'], preview['summary']['error'],
+        )
+        return api_ok(
+            '智能识别完成，请核对字段映射、数据和导入范围',
+            preview_token=token,
+            expires_in=SMART_FILL_PREVIEW_TTL_SECONDS,
+            preview=preview,
+        )
+
+
+    @app.route('/api/smart-import-confirm', methods=['POST'])
+    @login_required
+    def smart_import_confirm():
+        """重新接收同一客户端文件，并按用户选择执行新增、更新和恢复。"""
+        token = str(request.form.get('preview_token') or '').strip()
+        if not token:
+            return api_err('缺少智能导入预览凭证')
+        item = _get_smart_import_preview(token, session.get('user_id'))
+        if item is None:
+            return api_err('智能导入预览已过期或不存在，请重新识别文件', status=404)
+
+        file = request.files.get('file')
+        if not file or not file.filename:
+            return api_err('请重新提交已预览的 Excel 文件')
+        if os.path.splitext(file.filename)[1].lower() not in ALLOWED_UPLOAD_EXTENSIONS:
+            return api_err('智能导入仅支持 .xlsx 格式文件')
+        template_bytes = file.read()
+        if hashlib.sha256(template_bytes).hexdigest() != item['template_digest']:
+            return api_err('当前文件与智能导入预览时不一致，请重新识别文件', status=409)
+
+        allowed_statuses = {
+            status for status, form_name in (
+                ('new', 'allow_new'), ('update', 'allow_update'), ('restore', 'allow_restore')
+            )
+            if str(request.form.get(form_name, '')).lower() in {'1', 'true', 'on', 'yes'}
+        }
+        try:
+            result = execute_smart_import(template_bytes, item['analysis'], allowed_statuses)
+        except (TemplateAnalysisError, TemplateFillError) as exc:
+            sys_log.warning('用户 %s 智能导入确认未完成: %s', session.get('username'), exc)
+            return api_err(str(exc), status=422)
+        except Exception:
+            sys_log.exception('用户 %s 智能导入确认失败', session.get('username'))
+            return api_err('智能导入失败，请查看系统日志；标准导入仍可继续使用', status=500)
+
+        _remove_smart_import_preview(token)
+        db_log.info('用户 %s 智能导入员工: %s', session.get('username'), result)
+        return api_ok('智能导入完成', **result)
+
+
     # ==================== Excel 导出 API ====================
 
     def _send_export(names: list, username: str, action: str):
@@ -125,6 +308,117 @@ def register_import_export_routes(app):
             return api_err('请提供姓名列表')
 
         return _send_export(names, session.get('username'), '手动导出 Excel')
+
+
+    @app.route('/api/smart-fill', methods=['POST'])
+    @login_required
+    def smart_fill_requires_preview():
+        """旧的直接写入入口不再允许绕过映射确认。"""
+        return api_err('智能填表需要先预览并确认字段映射', status=409)
+
+
+    @app.route('/api/smart-fill-preview', methods=['POST'])
+    @login_required
+    def smart_fill_preview():
+        """识别工资表模板，返回经过服务端校验的字段映射供用户确认。"""
+        file = request.files.get('file')
+        if not file or not file.filename:
+            return api_err('请选择要填写的 Excel 模板')
+        if os.path.splitext(file.filename)[1].lower() not in ALLOWED_UPLOAD_EXTENSIONS:
+            return api_err('智能填表仅支持 .xlsx 格式文件')
+
+        raw_names = request.form.get('names', '')
+        names = []
+        if raw_names:
+            try:
+                parsed_names = json.loads(raw_names)
+            except json.JSONDecodeError:
+                return api_err('姓名名单格式不正确')
+            if not isinstance(parsed_names, list):
+                return api_err('姓名名单格式不正确')
+            names = list(dict.fromkeys(
+                str(name).strip() for name in parsed_names if str(name).strip()
+            ))
+            if len(names) > MAX_FILL_ROWS:
+                return api_err(f'智能填表一次最多支持 {MAX_FILL_ROWS} 个姓名')
+
+        try:
+            template_bytes = file.read()
+            analysis, preview = prepare_template(template_bytes)
+        except (TemplateAnalysisError, TemplateFillError) as exc:
+            sys_log.warning('用户 %s 智能填表预览未完成: %s', session.get('username'), exc)
+            return api_err(str(exc), status=422, fallback_available=True)
+        except Exception:
+            sys_log.exception('用户 %s 智能填表预览失败', session.get('username'))
+            return api_err('智能填表预览失败，请查看系统日志；现有手动导出仍可使用',
+                           status=500, fallback_available=True)
+
+        token = _store_smart_fill_preview(
+            session.get('user_id'), hashlib.sha256(template_bytes).hexdigest(), names, analysis,
+        )
+        sys_log.info(
+            '用户 %s 完成智能填表映射预览: 文件=%s, 表格=%s, 置信度=%.2f',
+            session.get('username'), file.filename, len(preview['tables']),
+            preview['confidence'],
+        )
+        return api_ok(
+            '模板识别完成，请核对字段映射后确认填写',
+            preview_token=token,
+            expires_in=SMART_FILL_PREVIEW_TTL_SECONDS,
+            preview=preview,
+            name_mode='provided' if names else 'template',
+            requested_names=len(names),
+        )
+
+
+    @app.route('/api/smart-fill-confirm', methods=['POST'])
+    @login_required
+    def smart_fill_confirm():
+        """接收客户端再次上传的模板，并使用预览阶段的已验证映射执行填表。"""
+        token = str(request.form.get('preview_token') or '').strip()
+        if not token:
+            return api_err('缺少智能填表预览凭证')
+        item = _get_smart_fill_preview(token, session.get('user_id'))
+        if item is None:
+            return api_err('预览已过期或不存在，请重新识别模板', status=404)
+
+        file = request.files.get('file')
+        if not file or not file.filename:
+            return api_err('请重新提交已预览的 Excel 模板')
+        if os.path.splitext(file.filename)[1].lower() not in ALLOWED_UPLOAD_EXTENSIONS:
+            return api_err('智能填表仅支持 .xlsx 格式文件')
+        template_bytes = file.read()
+        if hashlib.sha256(template_bytes).hexdigest() != item['template_digest']:
+            return api_err('当前模板与映射预览时的文件不一致，请重新识别模板', status=409)
+
+        try:
+            output_bytes, summary, analysis = fill_template(
+                template_bytes, names=item['names'], analysis=item['analysis'],
+            )
+        except (TemplateAnalysisError, TemplateFillError) as exc:
+            sys_log.warning('用户 %s 确认智能填表未完成: %s', session.get('username'), exc)
+            return api_err(str(exc), status=422, fallback_available=True)
+        except Exception:
+            sys_log.exception('用户 %s 确认智能填表失败', session.get('username'))
+            return api_err('智能填表失败，请查看系统日志；现有手动导出仍可使用',
+                           status=500, fallback_available=True)
+
+        _remove_smart_fill_preview(token)
+        filename = _smart_fill_filename(file.filename)
+        response = send_file(
+            io.BytesIO(output_bytes), as_attachment=True, download_name=filename,
+            mimetype=EXPORT_MIMETYPE,
+        )
+        response.headers['X-Smart-Fill-Matched'] = str(summary['matched'])
+        response.headers['X-Smart-Fill-Missing'] = str(len(summary['missing']))
+        response.headers['X-Smart-Fill-Cells'] = str(summary['cells_filled'])
+        response.headers['X-Smart-Fill-Confidence'] = f"{analysis['confidence']:.2f}"
+        sys_log.info(
+            '用户 %s 智能填表: 文件=%s, 匹配=%s, 填写单元格=%s, 置信度=%.2f',
+            session.get('username'), file.filename, summary['matched'],
+            summary['cells_filled'], analysis['confidence'],
+        )
+        return response
 
 
     @app.route('/api/input-preview')

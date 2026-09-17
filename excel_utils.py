@@ -104,7 +104,15 @@ def build_export_buffer(names: list, payroll: list = None) -> tuple:
     worksheet.title = '员工信息'
     worksheet.append(columns)
     for record in records:
-        worksheet.append([record.get(column, '') for column in columns])
+        row_number = worksheet.max_row + 1
+        for column_number, column in enumerate(columns, start=1):
+            value = record.get(column, '')
+            cell = worksheet.cell(row=row_number, column=column_number)
+            cell.value = value
+            if isinstance(value, str):
+                # 员工字段属于文本；显式指定字符串，防止以“=”开头的内容被当作公式。
+                cell.data_type = 's'
+                cell.number_format = '@'
     buf = io.BytesIO()
     workbook.save(buf)
     workbook.close()
@@ -216,10 +224,15 @@ def classify_import_rows(rows: list, existing: dict = None) -> list:
         existing = {r['real_name']: r['deleted']
                     for r in query_all("SELECT real_name, deleted FROM employees")}
 
-    seen = set()
+    name_counts = {}
     for row in rows:
         name = row['real_name']
-        messages = []
+        if name:
+            name_counts[name] = name_counts.get(name, 0) + 1
+
+    for row in rows:
+        name = row['real_name']
+        messages = list(row.get('_validation_messages') or [])
 
         # 警告级校验（提示但不阻止导入）
         if row['id_number'] and len(row['id_number']) not in (15, 18):
@@ -231,7 +244,9 @@ def classify_import_rows(rows: list, existing: dict = None) -> list:
         if not name:
             row['status'] = 'error'
             messages.insert(0, '姓名为空')
-        elif name in seen:
+        elif row.get('_force_error'):
+            row['status'] = 'error'
+        elif name_counts.get(name, 0) > 1:
             row['status'] = 'error'
             messages.insert(0, '文件中姓名重复')
         elif name not in existing:
@@ -241,7 +256,6 @@ def classify_import_rows(rows: list, existing: dict = None) -> list:
         else:
             row['status'] = 'update'
 
-        seen.add(name)
         row['messages'] = messages
     return rows
 

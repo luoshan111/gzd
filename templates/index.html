@@ -456,6 +456,47 @@
         <!-- Export Panel -->
         <div id="export" class="panel">
             <div class="card">
+                <div class="card-header">智能填写工资表模板</div>
+                <div class="card-body">
+                    <p style="font-size:0.8125rem;color:#64748b;margin-bottom:16px;line-height:1.7">
+                        上传项目自己的 .xlsx 工资表。AI 只识别表头和填写位置，员工信息由本系统在本地写入，原模板格式和公式会保留。
+                    </p>
+                    <div id="smartFillMessage"></div>
+                    <div class="upload-area" id="smartFillUploadArea" onclick="document.getElementById('smartFillFile').click()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('smartFillFile').click()}">
+                        <div class="icon">&#128196;</div>
+                        <p class="upload-prompt">点击选择工资表模板</p>
+                        <div class="upload-excel-icon" aria-hidden="true">XLSX</div>
+                        <div class="upload-file-details">
+                            <div class="upload-file-status">工资表模板已选中</div>
+                            <div class="upload-file-name" id="smartFillFileName"></div>
+                            <div class="upload-file-hint">点击此处可重新选择文件</div>
+                        </div>
+                        <span class="upload-change-hint">更换文件</span>
+                        <input type="file" id="smartFillFile" accept=".xlsx" onchange="updateSmartFillFileState(this)">
+                    </div>
+                    <label style="display:flex;align-items:flex-start;gap:8px;margin-top:14px;font-size:0.8125rem;color:#475569;cursor:pointer">
+                        <input type="checkbox" id="smartFillUseNames" style="margin-top:2px" onchange="resetSmartFillPreview()">
+                        <span>使用下方“手动输入导出”中的姓名名单。适合模板尚未填写姓名的情况；未勾选时，系统读取模板姓名列进行匹配。</span>
+                    </label>
+                    <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                        <button class="btn btn-primary" id="smartFillBtn" onclick="smartFillTemplate()">识别模板并预览</button>
+                        <span style="font-size:0.75rem;color:#94a3b8">识别失败不会改动原文件，可继续使用下方原有导出功能。</span>
+                    </div>
+                    <div id="smartFillPreview" style="display:none;margin-top:20px;padding:16px;border:1px solid #c7d2fe;border-radius:10px;background:#f8faff">
+                        <div class="section-title">字段映射预览</div>
+                        <div id="smartFillPreviewMeta" style="font-size:0.8125rem;color:#475569;margin-bottom:12px"></div>
+                        <div id="smartFillPreviewTables"></div>
+                        <p style="font-size:0.75rem;color:#b45309;margin-top:12px;line-height:1.6">
+                            请确认工作表、目标列和原表头完全对应。点击确认后，浏览器会重新提交当前模板并执行填写。
+                        </p>
+                        <div style="display:flex;gap:10px;margin-top:12px">
+                            <button class="btn btn-success" id="smartFillConfirmBtn" onclick="confirmSmartFill()">确认映射并填写</button>
+                            <button class="btn btn-outline" id="smartFillCancelBtn" onclick="cancelSmartFillPreview()">取消</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
                 <div class="card-header">手动输入导出</div>
                 <div class="card-body">
                     <div id="manualExportMessage"></div>
@@ -491,7 +532,54 @@
         <!-- Import Panel -->
         <div id="importTab" class="panel">
             <div class="card">
-                <div class="card-header">导入 Excel</div>
+                <div class="card-header">智能导入任意员工表</div>
+                <div class="card-body">
+                    <p style="font-size:0.8125rem;color:#64748b;margin-bottom:16px;line-height:1.7">
+                        上传已有的 .xlsx 员工信息表。系统会识别姓名、身份证号、银行卡号、开户行和电话等列，先展示字段映射及新增、更新、恢复分类，再按勾选范围写入数据库。
+                    </p>
+                    <div id="smartImportMessage"></div>
+                    <div class="upload-area" id="smartImportUploadArea" onclick="document.getElementById('smartImportFile').click()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('smartImportFile').click()}">
+                        <div class="icon">&#128196;</div>
+                        <p class="upload-prompt">点击选择待导入的员工表</p>
+                        <div class="upload-excel-icon" aria-hidden="true">XLSX</div>
+                        <div class="upload-file-details">
+                            <div class="upload-file-status">智能导入文件已选中</div>
+                            <div class="upload-file-name" id="smartImportFileName"></div>
+                            <div class="upload-file-hint">点击此处可重新选择文件</div>
+                        </div>
+                        <span class="upload-change-hint">更换文件</span>
+                        <input type="file" id="smartImportFile" accept=".xlsx" onchange="updateSmartImportFileState(this)">
+                    </div>
+                    <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                        <button class="btn btn-primary" id="smartImportPreviewBtn" onclick="previewSmartImport()">智能识别并预览</button>
+                        <span style="font-size:0.75rem;color:#94a3b8">原有标准格式导入保留在下方。</span>
+                    </div>
+                    <div id="smartImportReport" style="display:none;margin-top:20px">
+                        <div class="section-title">字段映射</div>
+                        <div id="smartImportMappingMeta" style="font-size:0.8125rem;color:#475569;margin-bottom:10px"></div>
+                        <div id="smartImportMapping"></div>
+                        <div class="section-title" style="margin-top:18px">数据分类预览</div>
+                        <div id="smartImportSummary" class="summary-row"></div>
+                        <div class="import-selection">
+                            <div class="import-selection-copy">
+                                <div class="import-selection-title">分别控制写入操作</div>
+                                <div class="import-selection-hint" id="smartImportSelectionHint">请选择要执行的操作</div>
+                            </div>
+                            <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:0.8125rem;color:#334155">
+                                <label><input type="checkbox" id="smartImportAllowNew" checked onchange="updateSmartImportSelection()"> 新建</label>
+                                <label><input type="checkbox" id="smartImportAllowUpdate" checked onchange="updateSmartImportSelection()"> 更新</label>
+                                <label><input type="checkbox" id="smartImportAllowRestore" checked onchange="updateSmartImportSelection()"> 恢复</label>
+                            </div>
+                        </div>
+                        <div id="smartImportTable"></div>
+                        <div style="margin-top:16px">
+                            <button class="btn btn-success" id="confirmSmartImportBtn" onclick="confirmSmartImport()" disabled>确认智能导入</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">标准格式导入</div>
                 <div class="card-body">
                     <div id="importMessage"></div>
                     <div class="upload-area" id="importUploadArea" onclick="document.getElementById('importFile').click()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('importFile').click()}">
@@ -504,7 +592,7 @@
                             <div class="upload-file-hint">点击此处可重新选择文件</div>
                         </div>
                         <span class="upload-change-hint">更换文件</span>
-                        <input type="file" id="importFile" accept=".xlsx,.xls" onchange="updateImportFileState(this)">
+                        <input type="file" id="importFile" accept=".xlsx" onchange="updateImportFileState(this)">
                     </div>
                     <div style="margin-top:12px;display:flex;gap:10px">
                         <button class="btn btn-primary" onclick="previewImport()">解析预览</button>
@@ -756,6 +844,126 @@
             showMessage('exportMessage', '正在导出...', 'info');
             requestExport('/api/export', {method:'POST'}, 'exportMessage');
         }
+
+        /* ===== 智能填写工资表模板 ===== */
+        let smartFillPreviewToken = null;
+        function resetSmartFillPreview() {
+            smartFillPreviewToken = null;
+            document.getElementById('smartFillPreview').style.display = 'none';
+            document.getElementById('smartFillPreviewMeta').textContent = '';
+            document.getElementById('smartFillPreviewTables').innerHTML = '';
+        }
+        function cancelSmartFillPreview() {
+            resetSmartFillPreview();
+            showMessage('smartFillMessage', '已取消本次字段映射，请重新选择或识别模板', 'info');
+        }
+        function updateSmartFillFileState(input) {
+            resetSmartFillPreview();
+            const area = document.getElementById('smartFillUploadArea');
+            const name = document.getElementById('smartFillFileName');
+            const file = input.files && input.files[0];
+            area.classList.toggle('selected', Boolean(file));
+            name.textContent = file ? file.name : '';
+        }
+        function renderSmartFillPreview(data) {
+            const preview = data.preview;
+            const modeText = data.name_mode === 'provided'
+                ? '使用手动姓名名单（'+data.requested_names+' 人）'
+                : '读取模板姓名列';
+            document.getElementById('smartFillPreviewMeta').textContent =
+                '识别置信度 '+Math.round(preview.confidence*100)+'%，姓名来源：'+modeText+'。';
+            let html = '';
+            preview.tables.forEach((table, index) => {
+                html += '<div style="margin-top:'+(index ? '16px' : '0')+'">';
+                html += '<div style="font-size:0.8125rem;font-weight:600;color:#1e293b;margin-bottom:8px">工作表：'+
+                    escapeHtml(table.sheet)+'，表头行 '+table.header_row+'，数据从第 '+table.data_start_row+' 行开始</div>';
+                html += '<div class="table-wrap"><table><thead><tr><th>数据库字段</th><th>目标列</th><th>模板表头</th><th>表头位置</th></tr></thead><tbody>';
+                table.fields.forEach(field => {
+                    html += '<tr><td>'+escapeHtml(field.label)+'</td><td>'+escapeHtml(field.column)+
+                        '</td><td>'+escapeHtml(field.header)+'</td><td>'+escapeHtml(field.column+field.header_row)+'</td></tr>';
+                });
+                html += '</tbody></table></div></div>';
+            });
+            document.getElementById('smartFillPreviewTables').innerHTML = html;
+            document.getElementById('smartFillPreview').style.display = 'block';
+        }
+        async function smartFillTemplate() {
+            const input = document.getElementById('smartFillFile');
+            const useNames = document.getElementById('smartFillUseNames').checked;
+            const button = document.getElementById('smartFillBtn');
+            if (!input.files.length) {
+                showMessage('smartFillMessage', '请先选择工资表模板', 'error'); return;
+            }
+            if (useNames && !nameList.length) {
+                showMessage('smartFillMessage', '请先在下方添加姓名，或取消“使用姓名名单”', 'error'); return;
+            }
+            const formData = new FormData();
+            formData.append('file', input.files[0]);
+            if (useNames) formData.append('names', JSON.stringify(nameList));
+            resetSmartFillPreview();
+            button.disabled = true;
+            showMessage('smartFillMessage', 'AI 正在识别并校验模板，请稍候...', 'info');
+            try {
+                const response = await fetch('/api/smart-fill-preview', {method:'POST', body:formData});
+                const data = await response.json();
+                if (!response.ok) {
+                    showMessage('smartFillMessage', data.message || '模板识别失败，可继续使用原有导出功能', 'error'); return;
+                }
+                smartFillPreviewToken = data.preview_token;
+                renderSmartFillPreview(data);
+                showMessage('smartFillMessage', '模板识别完成，请核对下方字段映射', 'info');
+            } catch (e) {
+                showMessage('smartFillMessage', '模板识别失败: '+e.message+'；可继续使用原有导出功能', 'error');
+            } finally {
+                button.disabled = false;
+            }
+        }
+        async function confirmSmartFill() {
+            if (!smartFillPreviewToken) {
+                showMessage('smartFillMessage', '预览已失效，请重新识别模板', 'error'); return;
+            }
+            const confirmButton = document.getElementById('smartFillConfirmBtn');
+            const cancelButton = document.getElementById('smartFillCancelBtn');
+            confirmButton.disabled = true;
+            cancelButton.disabled = true;
+            showMessage('smartFillMessage', '正在按已确认的映射填写模板...', 'info');
+            try {
+                const input = document.getElementById('smartFillFile');
+                if (!input.files.length) {
+                    resetSmartFillPreview();
+                    showMessage('smartFillMessage', '模板文件已不可用，请重新选择并识别', 'error');
+                    return;
+                }
+                const formData = new FormData();
+                formData.append('preview_token', smartFillPreviewToken);
+                formData.append('file', input.files[0]);
+                const response = await fetch('/api/smart-fill-confirm', {
+                    method:'POST', body:formData
+                });
+                if (!response.ok) {
+                    let message = '智能填表失败，可继续使用原有导出功能';
+                    try { message = (await response.json()).message || message; } catch (e) {}
+                    if (response.status === 404 || response.status === 409) resetSmartFillPreview();
+                    showMessage('smartFillMessage', message, 'error'); return;
+                }
+                const blob = await response.blob();
+                const filename = fileNameFromDisposition(
+                    response.headers.get('Content-Disposition'), '工资表_已填.xlsx');
+                saveBlobAs(blob, filename);
+                const matched = response.headers.get('X-Smart-Fill-Matched') || '0';
+                const missing = response.headers.get('X-Smart-Fill-Missing') || '0';
+                const cells = response.headers.get('X-Smart-Fill-Cells') || '0';
+                let resultMessage = '填写完成：匹配 '+matched+' 人，写入 '+cells+' 个单元格';
+                if (Number(missing) > 0) resultMessage += '；另有 '+missing+' 个姓名未在数据库中找到';
+                resetSmartFillPreview();
+                showMessage('smartFillMessage', resultMessage+'，文件已开始下载', 'success');
+            } catch (e) {
+                showMessage('smartFillMessage', '智能填表失败: '+e.message+'；可继续使用原有导出功能', 'error');
+            } finally {
+                confirmButton.disabled = false;
+                cancelButton.disabled = false;
+            }
+        }
         async function loadInputPreview() {
             try {
                 const r = await fetch('/api/input-preview');
@@ -778,9 +986,9 @@
             const name = input.value.trim();
             if (!name) return;
             if (nameList.includes(name)) { showMessage('manualExportMessage','该姓名已添加','error'); return; }
-            nameList.push(name); input.value=''; renderNameList();
+            nameList.push(name); input.value=''; renderNameList(); resetSmartFillPreview();
         }
-        function removeName(name) { nameList = nameList.filter(n=>n!==name); renderNameList(); }
+        function removeName(name) { nameList = nameList.filter(n=>n!==name); renderNameList(); resetSmartFillPreview(); }
         function renderNameList() {
             const c = document.getElementById('nameList');
             if (!nameList.length) { c.innerHTML = '<span style="color:#94a3b8;font-size:0.8125rem">暂无添加的姓名</span>'; return; }
@@ -794,7 +1002,91 @@
 
         /* ===== Excel 导入 ===== */
         let importRows = [];
+        let smartImportRows = [];
+        let smartImportPreviewToken = null;
+        let importConfirmMode = 'standard';
         const STATUS_LABELS = {new:'新增',update:'更新',restore:'恢复',error:'错误'};
+        function resetSmartImportPreview() {
+            smartImportPreviewToken = null;
+            smartImportRows = [];
+            document.getElementById('smartImportReport').style.display = 'none';
+            document.getElementById('smartImportMapping').innerHTML = '';
+            document.getElementById('smartImportTable').innerHTML = '';
+        }
+        function updateSmartImportFileState(input) {
+            resetSmartImportPreview();
+            const file = input.files && input.files[0];
+            document.getElementById('smartImportUploadArea').classList.toggle('selected', Boolean(file));
+            document.getElementById('smartImportFileName').textContent = file ? file.name : '';
+        }
+        async function previewSmartImport() {
+            const input = document.getElementById('smartImportFile');
+            const button = document.getElementById('smartImportPreviewBtn');
+            if (!input.files.length) { showMessage('smartImportMessage','请先选择 Excel 文件','error'); return; }
+            const formData = new FormData(); formData.append('file', input.files[0]);
+            resetSmartImportPreview();
+            button.disabled = true;
+            showMessage('smartImportMessage','正在识别字段并核对数据库，请稍候...','info');
+            try {
+                const response = await fetch('/api/smart-import-preview', {method:'POST', body:formData});
+                const data = await response.json();
+                if (!response.ok) { showMessage('smartImportMessage',data.message||'智能导入识别失败','error'); return; }
+                smartImportPreviewToken = data.preview_token;
+                smartImportRows = data.preview.rows;
+                renderSmartImportReport(data.preview);
+                showMessage('smartImportMessage','识别完成，请核对字段映射、数据分类和写入范围','info');
+            } catch (error) {
+                showMessage('smartImportMessage','智能导入识别失败: '+error.message,'error');
+            } finally { button.disabled = false; }
+        }
+        function renderSmartImportReport(preview) {
+            document.getElementById('smartImportReport').style.display = 'block';
+            document.getElementById('smartImportMappingMeta').textContent =
+                '识别置信度 '+Math.round(preview.confidence*100)+'%。员工数据只在本系统本地解析。';
+            let mappingHtml = '';
+            preview.tables.forEach((table, index) => {
+                mappingHtml += '<div style="margin-top:'+(index?'14px':'0')+'"><div style="font-size:0.8125rem;font-weight:600;margin-bottom:7px">工作表：'+escapeHtml(table.sheet)+'，表头行 '+table.header_row+'</div>';
+                mappingHtml += '<div class="table-wrap"><table><thead><tr><th>数据库字段</th><th>来源列</th><th>原表头</th><th>位置</th></tr></thead><tbody>';
+                table.fields.forEach(field => { mappingHtml += '<tr><td>'+escapeHtml(field.label)+'</td><td>'+escapeHtml(field.column)+'</td><td>'+escapeHtml(field.header)+'</td><td>'+escapeHtml(field.column+field.header_row)+'</td></tr>'; });
+                mappingHtml += '</tbody></table></div></div>';
+            });
+            document.getElementById('smartImportMapping').innerHTML = mappingHtml;
+            const summary = preview.summary;
+            document.getElementById('smartImportSummary').innerHTML = '<span class="badge badge-total">共 '+summary.total+' 行</span><span class="badge badge-new">新增 '+summary.new+'</span><span class="badge badge-update">更新 '+summary.update+'</span><span class="badge badge-restore">恢复 '+summary.restore+'</span><span class="badge badge-error">错误 '+summary.error+'</span>';
+            let html = '<div class="table-wrap"><table><thead><tr><th>工作表</th><th>行号</th><th>姓名</th><th>身份证号</th><th>银行账号</th><th>银行地址</th><th>电话</th><th>状态</th><th>提示</th></tr></thead><tbody>';
+            smartImportRows.forEach(row => {
+                const cls = row.status==='error' ? ' class="row-error"' : '';
+                const messages = row.messages.length ? escapeHtml(row.messages.join('；')) : '-';
+                html += '<tr'+cls+'><td>'+escapeHtml(row._sheet)+'</td><td>'+escapeHtml(row._row)+'</td><td><strong>'+escapeHtml(row.real_name||'(空)')+'</strong></td><td>'+escapeHtml(row.id_number||'-')+'</td><td>'+escapeHtml(row.bank_account||'-')+'</td><td>'+escapeHtml(row.bank_address||'-')+'</td><td>'+escapeHtml(row.phone||'-')+'</td><td><span class="status-badge status-'+row.status+'">'+STATUS_LABELS[row.status]+'</span></td><td>'+messages+'</td></tr>';
+            });
+            html += '</tbody></table></div>';
+            document.getElementById('smartImportTable').innerHTML = html;
+            document.getElementById('smartImportAllowNew').checked = true;
+            document.getElementById('smartImportAllowUpdate').checked = true;
+            document.getElementById('smartImportAllowRestore').checked = true;
+            updateSmartImportSelection();
+        }
+        function getSmartImportAllowedStatuses() {
+            const statuses = [];
+            if (document.getElementById('smartImportAllowNew').checked) statuses.push('new');
+            if (document.getElementById('smartImportAllowUpdate').checked) statuses.push('update');
+            if (document.getElementById('smartImportAllowRestore').checked) statuses.push('restore');
+            return statuses;
+        }
+        function updateSmartImportSelection() {
+            const allowed = getSmartImportAllowedStatuses();
+            const count = smartImportRows.filter(row => allowed.includes(row.status)).length;
+            document.getElementById('smartImportSelectionHint').textContent = allowed.length ? '当前将执行：'+allowed.map(s=>STATUS_LABELS[s]).join('、')+' · '+count+' 条' : '尚未选择任何写入操作';
+            const button = document.getElementById('confirmSmartImportBtn');
+            button.disabled = !smartImportPreviewToken || count===0;
+            button.textContent = count ? '确认智能导入（'+count+' 条）' : '当前范围没有可导入记录';
+        }
+        function confirmSmartImport() {
+            const allowed = getSmartImportAllowedStatuses();
+            const count = smartImportRows.filter(row => allowed.includes(row.status)).length;
+            if (!smartImportPreviewToken || !count) { showMessage('smartImportMessage','没有可执行的智能导入记录','error'); return; }
+            showImportConfirmModal(count, 'smart');
+        }
         function updateImportFileState(input) {
             const area = document.getElementById('importUploadArea');
             const name = document.getElementById('importFileName');
@@ -820,8 +1112,8 @@
             let h = '<div class="table-wrap"><table><thead><tr><th>行号</th><th>姓名</th><th>身份证号</th><th>银行账号</th><th>银行地址</th><th>电话</th><th>状态</th><th>提示</th></tr></thead><tbody>';
             rows.forEach(row => {
                 const cls = row.status==='error' ? ' class="row-error"' : '';
-                const msgs = row.messages.length ? '<span style="font-size:0.8125rem;color:#64748b">'+row.messages.join('；')+'</span>' : '-';
-                h += '<tr'+cls+'><td>'+row._row+'</td><td><strong>'+(row.real_name||'(空)')+'</strong></td><td>'+(row.id_number||'-')+'</td><td>'+(row.bank_account||'-')+'</td><td>'+(row.bank_address||'-')+'</td><td>'+(row.phone||'-')+'</td><td><span class="status-badge status-'+row.status+'">'+STATUS_LABELS[row.status]+'</span></td><td>'+msgs+'</td></tr>';
+                const msgs = row.messages.length ? '<span style="font-size:0.8125rem;color:#64748b">'+escapeHtml(row.messages.join('；'))+'</span>' : '-';
+                h += '<tr'+cls+'><td>'+escapeHtml(row._row)+'</td><td><strong>'+escapeHtml(row.real_name||'(空)')+'</strong></td><td>'+escapeHtml(row.id_number||'-')+'</td><td>'+escapeHtml(row.bank_account||'-')+'</td><td>'+escapeHtml(row.bank_address||'-')+'</td><td>'+escapeHtml(row.phone||'-')+'</td><td><span class="status-badge status-'+row.status+'">'+STATUS_LABELS[row.status]+'</span></td><td>'+msgs+'</td></tr>';
             });
             h += '</tbody></table></div>';
             document.getElementById('importTable').innerHTML = h;
@@ -843,12 +1135,16 @@
         async function confirmImport() {
             const valid = getSelectedImportRows();
             if (!valid.length) { showMessage('importMessage','没有可导入的有效数据','error'); return; }
-            showImportConfirmModal(valid.length);
+            showImportConfirmModal(valid.length, 'standard');
         }
         let importConfirmTrigger = null;
-        function showImportConfirmModal(count) {
+        function showImportConfirmModal(count, mode) {
+            importConfirmMode = mode || 'standard';
             importConfirmTrigger = document.activeElement;
             document.getElementById('importConfirmCount').textContent = count;
+            document.getElementById('importConfirmDescription').textContent = importConfirmMode === 'smart'
+                ? '系统将重新核对同一客户端文件，并按照勾选范围新增、更新或恢复员工档案。'
+                : '已通过校验的数据将写入员工档案，并按照预览结果新增、更新或恢复记录。';
             const modal = document.getElementById('importConfirmModal');
             modal.classList.add('visible');
             modal.setAttribute('aria-hidden', 'false');
@@ -868,6 +1164,7 @@
             }
         });
         async function submitImport() {
+            if (importConfirmMode === 'smart') { await submitSmartImport(); return; }
             const valid = getSelectedImportRows();
             if (!valid.length) { closeImportConfirmModal(); showMessage('importMessage','没有可导入的有效数据','error'); return; }
             const submitBtn = document.getElementById('submitImportBtn');
@@ -886,6 +1183,43 @@
                     toast('导入完成','success');
                 } else { showMessage('importMessage',d.message,'error'); submitBtn.disabled = false; submitBtn.textContent = '确认导入'; }
             } catch (e) { showMessage('importMessage','导入失败: '+e.message,'error'); submitBtn.disabled = false; submitBtn.textContent = '确认导入'; }
+        }
+        async function submitSmartImport() {
+            const input = document.getElementById('smartImportFile');
+            const allowed = getSmartImportAllowedStatuses();
+            const submitBtn = document.getElementById('submitImportBtn');
+            if (!smartImportPreviewToken || !input.files.length || !allowed.length) {
+                closeImportConfirmModal();
+                resetSmartImportPreview();
+                showMessage('smartImportMessage','预览或客户端文件已失效，请重新识别','error');
+                return;
+            }
+            submitBtn.disabled = true;
+            submitBtn.textContent = '正在智能导入...';
+            const formData = new FormData();
+            formData.append('preview_token', smartImportPreviewToken);
+            formData.append('file', input.files[0]);
+            formData.append('allow_new', allowed.includes('new') ? '1' : '0');
+            formData.append('allow_update', allowed.includes('update') ? '1' : '0');
+            formData.append('allow_restore', allowed.includes('restore') ? '1' : '0');
+            try {
+                const response = await fetch('/api/smart-import-confirm', {method:'POST', body:formData});
+                const data = await response.json();
+                if (!response.ok) {
+                    if (response.status===404 || response.status===409) resetSmartImportPreview();
+                    showMessage('smartImportMessage',data.message||'智能导入失败','error');
+                    submitBtn.disabled = false; submitBtn.textContent = '确认导入'; return;
+                }
+                closeImportConfirmModal();
+                showMessage('smartImportMessage','智能导入完成：新增'+data.inserted+'条，更新'+data.updated+'条，恢复'+data.restored+'条，未执行'+data.excluded+'条','success');
+                resetSmartImportPreview();
+                input.value = '';
+                updateSmartImportFileState(input);
+                toast('智能导入完成','success');
+            } catch (error) {
+                showMessage('smartImportMessage','智能导入失败: '+error.message,'error');
+                submitBtn.disabled = false; submitBtn.textContent = '确认导入';
+            }
         }
 
         /* ===== 操作日志 ===== */
