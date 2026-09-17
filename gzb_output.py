@@ -7,8 +7,8 @@
     python gzb_output.py
 """
 
-import config
-from excel_utils import read_names, export_employees
+from core import config
+from services.excel_utils import read_names, export_employees
 
 
 def main() -> None:

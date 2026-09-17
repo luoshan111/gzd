@@ -11,8 +11,8 @@ Excel 员工信息批量导入工具
 import os
 import sys
 
-from db import init_db
-from excel_utils import read_employee_excel, classify_import_rows, import_employee_rows
+from core.db import init_db
+from services.excel_utils import read_employee_excel, classify_import_rows, import_employee_rows
 
 
 def import_excel(path: str) -> None:

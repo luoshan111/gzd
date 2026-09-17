@@ -27,7 +27,7 @@ os.environ['GZD_DB_PATH'] = os.path.join(tmpdir, 'test.db')
 from werkzeug.security import generate_password_hash
 
 import app as app_module
-from db import execute, now_local
+from core.db import execute, now_local
 
 # 准备一个已知密码的测试用户
 execute(

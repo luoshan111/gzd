@@ -15,7 +15,7 @@ import sys
 
 from werkzeug.security import generate_password_hash
 
-from db import init_db, now_local, query_all, execute
+from core.db import init_db, now_local, query_all, execute
 
 
 def create_user(username: str, password: str, is_admin: bool = False) -> None:

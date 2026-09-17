@@ -7,16 +7,16 @@
 from flask import Flask, request
 from werkzeug.exceptions import HTTPException
 
-import config
-from app_common import api_err
-from admin_routes import register_admin_routes
-from auth_routes import register_auth_routes
-from employee_routes import register_employee_routes
-from import_export_routes import register_import_export_routes
-from agent_routes import register_agent_routes
-from log_utils import setup_logging, sys_log
-from page_routes import register_page_routes
-from db import init_db
+from core import config
+from core.app_common import api_err
+from routes.admin_routes import register_admin_routes
+from routes.auth_routes import register_auth_routes
+from routes.employee_routes import register_employee_routes
+from routes.import_export_routes import register_import_export_routes
+from routes.agent_routes import register_agent_routes
+from core.log_utils import setup_logging, sys_log
+from routes.page_routes import register_page_routes
+from core.db import init_db
 
 # 日志和数据库初始化必须在路由注册前完成，确保导入 app 的启动方式也可用。
 setup_logging()

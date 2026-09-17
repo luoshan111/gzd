@@ -30,19 +30,22 @@
 ## 项目文件说明
 
 - `app.py`：Flask 应用入口，负责初始化、全局错误处理和路由模块注册
-- `app_common.py`：统一 API 响应格式、鉴权装饰器和公共字段工具
-- `auth_routes.py`：登录、登出和登录状态接口
-- `page_routes.py`：主页、后台、回收站和备份页面路由
-- `employee_routes.py`：员工信息与回收站 API
-- `import_export_routes.py`：Excel 导入、导出 API
-- `admin_routes.py`：日志、备份和管理员用户 API
-- `config.py`：集中配置（数据库/文件路径/密钥，支持环境变量覆盖）
-- `db.py`：数据库访问层，含建表、旧库迁移与查询助手
-- `excel_utils.py`：Excel 导入导出共享逻辑
-- `smart_import_service.py`：任意员工表的智能字段识别和选择性导入
-- `smart_fill_service.py`：工资表模板智能识别与安全填充
-- `log_utils.py`：日志模块，负责日志落盘（按天滚动）与日志查询
-- `backup_utils.py`：SQLite 一致性备份、完整性校验与旧备份清理
+- `routes/`：Flask HTTP 路由层
+- `services/`：业务服务层，和 HTTP 路由分离
+- `core/`：配置、数据库、日志、备份和公共基础设施
+- `services/auth_service.py`：登录认证和密码修改业务
+- `services/employee_service.py`：员工与回收站业务
+- `services/admin_service.py`：日志、备份和用户管理业务
+- `services/import_export_service.py`：Excel 导入导出和智能填表业务
+- `core/app_common.py`：统一 API 响应格式、鉴权装饰器和公共字段工具
+- `routes/`：登录、页面、员工、Excel、管理员和 AI 接口
+- `core/config.py`：集中配置（数据库/文件路径/密钥，支持环境变量覆盖）
+- `core/db.py`：数据库访问层，含建表、旧库迁移与查询助手
+- `services/excel_utils.py`：Excel 导入导出共享逻辑
+- `services/smart_import_service.py`：任意员工表的智能字段识别和选择性导入
+- `services/smart_fill_service.py`：工资表模板智能识别与安全填充
+- `core/log_utils.py`：日志模块，负责日志落盘（按天滚动）与日志查询
+- `core/backup_utils.py`：SQLite 一致性备份、完整性校验与旧备份清理
 - `gzb_backup.py`：手动创建数据库备份的命令行工具
 - `templates/`：页面模板（主页、登录、管理后台、回收站）
 - `logs/`：运行时日志目录（system.log 系统日志 / database.log 数据库改动日志，按天滚动）
@@ -76,7 +79,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-端口、调试模式和备份目录等可通过环境变量覆盖，详见 `config.py` 顶部注释（如 `GZD_PORT`、`GZD_DEBUG`、`GZD_BACKUP_DIR`）。
+端口、调试模式和备份目录等可通过环境变量覆盖，详见 `core/config.py` 顶部注释（如 `GZD_PORT`、`GZD_DEBUG`、`GZD_BACKUP_DIR`）。
 
 ### 4. 数据备份
 
@@ -170,18 +173,9 @@ eal_name）升序排列。
 ```text
 .
 ├── app.py                  # Flask 应用入口
-├── app_common.py           # 统一响应、鉴权装饰器
-├── config.py               # 集中配置
-├── db.py                   # 数据库访问层
-├── admin_routes.py         # 管理员 API
-├── auth_routes.py          # 登录登出 API
-├── employee_routes.py      # 员工与回收站 API
-├── import_export_routes.py # Excel 导入导出 API
-├── page_routes.py          # 页面路由
-├── excel_utils.py          # Excel 工具
-├── smart_fill_service.py   # 工资表模板智能识别与填充
-├── log_utils.py            # 日志模块
-├── backup_utils.py         # 备份工具
+├── core/                   # 配置、数据库、日志、备份、公共基础设施
+├── routes/                 # HTTP 路由
+├── services/               # 业务服务和 Excel 处理
 ├── gzb_admin.py            # CLI 用户管理
 ├── gzb_backup.py           # CLI 备份
 ├── gzb_find.py             # CLI 查询

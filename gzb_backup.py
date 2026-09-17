@@ -3,8 +3,8 @@
 用法：python gzb_backup.py
 """
 
-from backup_utils import create_backup
-from db import init_db
+from core.backup_utils import create_backup
+from core.db import init_db
 
 
 if __name__ == '__main__':

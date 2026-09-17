@@ -6,7 +6,7 @@
     python gzb_find.py
 """
 
-from db import init_db, query_all
+from core.db import init_db, query_all
 
 FIELDS = [('姓名', 'real_name'), ('身份证号', 'id_number'), ('银行账号', 'bank_account'),
           ('银行地址', 'bank_address'), ('电话', 'phone')]

@@ -1,0 +1,313 @@
+"""
+Excel 导入导出共享逻辑
+供 Flask 导出接口与 gzb_output.py 等脚本共用。
+"""
+
+import io
+import os
+import re
+
+from openpyxl import Workbook, load_workbook
+
+from core.db import query_all, get_connection, get_pinyin_sx
+
+# 导出 Excel 的列名（与模板保持一致）
+EXPORT_COLUMNS = ['姓名', '身份证号', '银行账号', '银行地址', '电话']
+
+
+def read_names(path: str, limit: int = None) -> list:
+    """
+    读取 Excel 第一列的姓名列表。
+
+    参数:
+        path:  Excel 文件路径
+        limit: 最多读取的行数，None 表示全部读取
+    返回:
+        去空白后的姓名列表（保留原顺序，不去重）
+    异常:
+        FileNotFoundError: 文件不存在时抛出
+    """
+    if not os.path.exists(path):
+        raise FileNotFoundError(f'{path} 文件不存在')
+
+    wb = load_workbook(path, read_only=True)
+    try:
+        ws = wb.active
+        names = []
+        for row in ws.iter_rows(max_row=limit, values_only=True):
+            if row and row[0] is not None and str(row[0]).strip():
+                names.append(str(row[0]).strip())
+        # 首行是表头（"姓名"）时自动跳过，避免被当成姓名查询
+        if names and names[0] == '姓名':
+            names = names[1:]
+        return names
+    finally:
+        wb.close()
+
+
+def build_employee_records(names: list) -> list:
+    """
+    按姓名列表从数据库匹配员工信息，生成导出用记录列表。
+    一次性取出全表建立索引，避免逐姓名查询（N+1 问题）；
+    只匹配在职记录（deleted = 0），数据库中不存在或已删除的姓名导出为空行。
+    """
+    rows = query_all(
+        "SELECT real_name, id_number, bank_account, bank_address, phone "
+        "FROM employees WHERE deleted = 0"
+    )
+    employees_by_name = {row['real_name']: row for row in rows}
+
+    records = []
+    for name in names:
+        emp = employees_by_name.get(name)
+        records.append({
+            '姓名': name,
+            '身份证号': (emp['id_number'] or '') if emp else '',
+            '银行账号': (emp['bank_account'] or '') if emp else '',
+            '银行地址': (emp['bank_address'] or '') if emp else '',
+            '电话': (emp['phone'] or '') if emp else '',
+        })
+    return records
+
+
+def build_export_buffer(names: list, payroll: list = None) -> tuple:
+    """
+    按姓名列表生成导出 Excel，写入内存缓冲区（不落盘，供 HTTP 直接返回）。
+
+    payroll: 可选，对话中收集的每人工资考勤数据，
+             形如 [{"name": 姓名, "days": 考勤天数, "daily_wage": 每日工资, "total_wage": 总工资}]。
+             提供时在末尾追加三列：考勤天数 / 每日工资 / 总工资。
+             各列只填对话中明确说出的数字；总工资未说但天数和日工资齐全时按
+             每日工资 × 考勤天数 计算；只有总工资和天数时每日工资留空，不反推。
+             未提供数据的人三列留空。不提供 payroll 时不追加任何列。
+
+    返回: (BytesIO 缓冲区, 总条数, 数据库匹配到的条数)
+    """
+    records = build_employee_records(names)
+    matched = sum(1 for record in records if record['身份证号'])
+    if payroll:
+        by_name = {str(p.get('name', '')).strip(): p for p in payroll}
+        for record in records:
+            name = record['姓名']
+            p = by_name.get(str(name).strip(), {})
+            days = p.get('days')
+            wage = p.get('daily_wage')
+            total = p.get('total_wage')
+            if total is None and days is not None and wage is not None:
+                total = round(days * wage, 2)
+            record['考勤天数'] = days if days is not None else None
+            record['每日工资'] = wage if wage is not None else None
+            record['总工资'] = total if total is not None else None
+    columns = EXPORT_COLUMNS + (['考勤天数', '每日工资', '总工资'] if payroll else [])
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = '员工信息'
+    worksheet.append(columns)
+    for record in records:
+        row_number = worksheet.max_row + 1
+        for column_number, column in enumerate(columns, start=1):
+            value = record.get(column, '')
+            cell = worksheet.cell(row=row_number, column=column_number)
+            cell.value = value
+            if isinstance(value, str):
+                # 员工字段属于文本；显式指定字符串，防止以“=”开头的内容被当作公式。
+                cell.data_type = 's'
+                cell.number_format = '@'
+    buf = io.BytesIO()
+    workbook.save(buf)
+    workbook.close()
+    buf.seek(0)
+    return buf, len(records), matched
+
+
+def export_employees(names: list, output_path: str) -> tuple:
+    """
+    按姓名列表导出员工信息到 Excel 文件（供命令行脚本使用）。
+
+    返回: (总条数, 数据库匹配到的条数)
+    """
+    buf, total, matched = build_export_buffer(names)
+    with open(output_path, 'wb') as f:
+        f.write(buf.getvalue())
+    return total, matched
+
+
+# ---------------------------------------------------------------------------
+# 导入（Web 上传接口与 gzb_update.py 共用）
+# ---------------------------------------------------------------------------
+
+# 导入 Excel 需要的数据库字段
+IMPORT_COLUMNS = ['real_name', 'id_number', 'bank_account', 'bank_address', 'phone']
+
+# 表头别名映射：自动识别中英文表头（键为表头文字，值为标准字段名）
+HEADER_ALIASES = {
+    'real_name': 'real_name', '姓名': 'real_name', 'name': 'real_name',
+    'id_number': 'id_number', '身份证号': 'id_number', '身份证': 'id_number',
+    'bank_account': 'bank_account', '银行账号': 'bank_account', '银行卡号': 'bank_account',
+    'bank_address': 'bank_address', '银行地址': 'bank_address', '开户行': 'bank_address',
+    'phone': 'phone', '电话': 'phone', '手机号': 'phone', '手机号码': 'phone',
+}
+
+# 导入行状态对应的中文标签（前端展示用）
+STATUS_LABELS = {'new': '新增', 'update': '更新', 'restore': '恢复', 'error': '错误'}
+
+
+def _clean_cell(value) -> str:
+    """
+    清洗单元格文本：转字符串并去空白；
+    数值单元格的小数尾巴（如 '13800000000.0'）还原为整数字符串。
+    """
+    if value is None:
+        return ''
+    text = str(value).strip()
+    if re.fullmatch(r'\d+\.0', text):
+        text = text[:-2]
+    return text
+
+
+def read_employee_excel(source) -> list:
+    """
+    读取员工信息 Excel（文件路径或文件流），自动识别中英文表头。
+    所有列按文本处理以保留前导零；缺失的字段补空字符串。
+
+    返回: [{'_row': Excel 行号, 'real_name': ..., 'id_number': ..., ...}, ...]
+    异常: ValueError - 文件无法解析或找不到"姓名"列时抛出（消息为友好的中文提示）
+
+    注意: 身份证号/银行账号等长数字请在 Excel 中以"文本"格式保存；
+    数值格式的单元格超过 15 位会被 Excel 自身截断，任何工具都无法还原。
+    """
+    try:
+        workbook = load_workbook(source, read_only=True, data_only=True)
+        worksheet = workbook.active
+        row_iter = worksheet.iter_rows(values_only=True)
+        headers = next(row_iter, None)
+        if not headers:
+            raise ValueError('文件中没有表头')
+        records = [dict(zip(headers, values)) for values in row_iter]
+        workbook.close()
+    except Exception:
+        raise ValueError('文件解析失败，请确认是有效的 .xlsx 文件') from None
+
+    # 表头标准化：别名 -> 标准字段名
+    renamed = {}
+    for col in headers:
+        key = str(col).strip()
+        if key in HEADER_ALIASES:
+            renamed[col] = HEADER_ALIASES[key]
+
+    if 'real_name' not in renamed.values():
+        raise ValueError('缺少"姓名"列（表头支持：姓名 / real_name）')
+
+    rows = []
+    for excel_row, record in enumerate(records, start=2):  # 数据从第 2 行起
+        row = {'_row': excel_row}
+        for field in IMPORT_COLUMNS:
+            source_column = next((column for column, target in renamed.items() if target == field), None)
+            row[field] = _clean_cell(record.get(source_column, '') if source_column else '')
+        rows.append(row)
+    return rows
+
+
+def classify_import_rows(rows: list, existing: dict = None) -> list:
+    """
+    结合数据库现状为每行数据打分类标签并生成校验信息。
+
+    参数:
+        rows:     read_employee_excel 的输出
+        existing: {姓名: deleted} 映射，None 时自动从数据库查询
+    返回:
+        原列表，每行附加:
+            status   - new(新增) / update(更新) / restore(恢复已删除) / error(错误，不导入)
+            messages - 校验提示列表（错误与警告）
+    """
+    if existing is None:
+        existing = {r['real_name']: r['deleted']
+                    for r in query_all("SELECT real_name, deleted FROM employees")}
+
+    name_counts = {}
+    for row in rows:
+        name = row['real_name']
+        if name:
+            name_counts[name] = name_counts.get(name, 0) + 1
+
+    for row in rows:
+        name = row['real_name']
+        messages = list(row.get('_validation_messages') or [])
+
+        # 警告级校验（提示但不阻止导入）
+        if row['id_number'] and len(row['id_number']) not in (15, 18):
+            messages.append('身份证号位数异常（应为 15 或 18 位）')
+        if row['phone'] and not row['phone'].isdigit():
+            messages.append('电话包含非数字字符')
+
+        # 分类（错误级会阻止该行导入）
+        if not name:
+            row['status'] = 'error'
+            messages.insert(0, '姓名为空')
+        elif row.get('_force_error'):
+            row['status'] = 'error'
+        elif name_counts.get(name, 0) > 1:
+            row['status'] = 'error'
+            messages.insert(0, '文件中姓名重复')
+        elif name not in existing:
+            row['status'] = 'new'
+        elif existing[name]:
+            row['status'] = 'restore'
+        else:
+            row['status'] = 'update'
+
+        row['messages'] = messages
+    return rows
+
+
+def summarize_import_rows(rows: list) -> dict:
+    """统计分类结果：{total, new, update, restore, error}。"""
+    summary = {'total': len(rows), 'new': 0, 'update': 0, 'restore': 0, 'error': 0}
+    for row in rows:
+        summary[row['status']] += 1
+    return summary
+
+
+def import_employee_rows(rows: list) -> dict:
+    """
+    将分类后的行写入数据库（跳过 error/空姓名行，单事务）：
+    新姓名插入；已存在更新；已软删除的同名记录自动恢复并清除审计信息。
+
+    返回: {inserted, updated, restored, skipped}
+    """
+    existing = {r['real_name']: r['deleted']
+                for r in query_all("SELECT real_name, deleted FROM employees")}
+
+    inserted = updated = restored = skipped = 0
+    with get_connection() as conn:
+        for row in rows:
+            if row.get('status') == 'error' or not row['real_name']:
+                skipped += 1
+                continue
+
+            name = row['real_name']
+            values = tuple(row[field] for field in IMPORT_COLUMNS[1:])
+            sx = get_pinyin_sx(name)
+
+            if name in existing:
+                conn.execute('''
+                    UPDATE employees
+                    SET id_number=?, bank_account=?, bank_address=?, phone=?, sx=?,
+                        deleted=0, deleted_at=NULL, deleted_by=NULL
+                    WHERE real_name=?
+                ''', (*values, sx, name))
+                if existing[name]:
+                    restored += 1
+                else:
+                    updated += 1
+            else:
+                conn.execute('''
+                    INSERT INTO employees (real_name, id_number, bank_account, bank_address, phone, sx)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (name, *values, sx))
+                existing[name] = 0
+                inserted += 1
+        conn.commit()
+
+    return {'inserted': inserted, 'updated': updated,
+            'restored': restored, 'skipped': skipped}
