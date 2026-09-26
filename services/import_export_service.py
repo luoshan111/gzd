@@ -161,12 +161,15 @@ def parse_names(raw_names):
     return names
 
 
-def preview_smart_fill(template_bytes, names, user_id, prepare_fn=prepare_template):
+def preview_smart_fill(template_bytes, names, user_id, prepare_fn=prepare_template,
+                       overwrite=False):
+    if overwrite and not names:
+        raise TemplateFillError('清空重填模式必须提供姓名名单，请先在下方添加姓名')
     analysis, preview = prepare_fn(template_bytes)
     token = _store(
         'smart_fill', user_id,
         template_digest=hashlib.sha256(template_bytes).hexdigest(),
-        names=names, analysis=analysis,
+        names=names, analysis=analysis, overwrite=bool(overwrite),
     )
     return token, preview
 
@@ -184,9 +187,10 @@ def confirm_smart_fill(token, user_id, template_bytes, original_filename, userna
         raise LookupError('预览已过期或不存在，请重新识别模板')
     if hashlib.sha256(template_bytes).hexdigest() != item['template_digest']:
         raise ValueError('当前模板与映射预览时的文件不一致，请重新识别模板')
-    output_bytes, summary, analysis = fill_fn(
-        template_bytes, names=item['names'], analysis=item['analysis'],
-    )
+    fill_options = {'names': item['names'], 'analysis': item['analysis']}
+    if item.get('overwrite', False):
+        fill_options['overwrite'] = True
+    output_bytes, summary, analysis = fill_fn(template_bytes, **fill_options)
     _remove('smart_fill', token)
     sys_log.info(
         '用户 %s 智能填表: 文件=%s, 匹配=%s, 填写单元格=%s, 置信度=%.2f',

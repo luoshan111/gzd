@@ -475,8 +475,12 @@
                         <input type="file" id="smartFillFile" accept=".xlsx" onchange="updateSmartFillFileState(this)">
                     </div>
                     <label style="display:flex;align-items:flex-start;gap:8px;margin-top:14px;font-size:0.8125rem;color:#475569;cursor:pointer">
-                        <input type="checkbox" id="smartFillUseNames" style="margin-top:2px" onchange="resetSmartFillPreview()">
-                        <span>使用下方“手动输入导出”中的姓名名单。适合模板尚未填写姓名的情况；未勾选时，系统读取模板姓名列进行匹配。</span>
+                        <input type="checkbox" id="smartFillUseNames" checked style="margin-top:2px" onchange="resetSmartFillPreview()">
+                        <span>使用下方“手动输入导出”的姓名名单。需要写入哪些人，就在名单中添加哪些人，员工信息从数据库读取。</span>
+                    </label>
+                    <label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:0.8125rem;color:#475569;cursor:pointer">
+                        <input type="checkbox" id="smartFillOverwrite" checked style="margin-top:2px" onchange="resetSmartFillPreview()">
+                        <span>清空原有人员，按下方姓名名单重填。清除明细区的旧人员信息及工资、考勤等固定值，保留格式、计算公式和汇总行。本次填表只读取数据库；员工编辑和导入更新仍可写入。取消勾选可使用原来的保留内容填空模式。</span>
                     </label>
                     <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
                         <button class="btn btn-primary" id="smartFillBtn" onclick="smartFillTemplate()">识别模板并预览</button>
@@ -868,10 +872,11 @@
         function renderSmartFillPreview(data) {
             const preview = data.preview;
             const modeText = data.name_mode === 'provided'
-                ? '使用手动姓名名单（'+data.requested_names+' 人）'
+                ? '下方姓名名单（'+data.requested_names+' 人）'
                 : '读取模板姓名列';
             document.getElementById('smartFillPreviewMeta').textContent =
-                '识别置信度 '+Math.round(preview.confidence*100)+'%，姓名来源：'+modeText+'。';
+                '识别置信度 '+Math.round(preview.confidence*100)+'%，姓名来源：'+modeText+'；填写方式：'+
+                (data.overwrite ? '清除原有人员，仅按名单重填；数据库只读' : '保留已有信息，只填空白')+'。';
             let html = '';
             preview.tables.forEach((table, index) => {
                 html += '<div style="margin-top:'+(index ? '16px' : '0')+'">';
@@ -889,17 +894,19 @@
         }
         async function smartFillTemplate() {
             const input = document.getElementById('smartFillFile');
-            const useNames = document.getElementById('smartFillUseNames').checked;
+            const overwrite = document.getElementById('smartFillOverwrite').checked;
+            const useNames = overwrite || document.getElementById('smartFillUseNames').checked;
             const button = document.getElementById('smartFillBtn');
             if (!input.files.length) {
                 showMessage('smartFillMessage', '请先选择工资表模板', 'error'); return;
             }
             if (useNames && !nameList.length) {
-                showMessage('smartFillMessage', '请先在下方添加姓名，或取消“使用姓名名单”', 'error'); return;
+                showMessage('smartFillMessage', '请先在下方姓名名单中添加需要写入的人员', 'error'); return;
             }
             const formData = new FormData();
             formData.append('file', input.files[0]);
             if (useNames) formData.append('names', JSON.stringify(nameList));
+            formData.append('overwrite', overwrite ? '1' : '0');
             resetSmartFillPreview();
             button.disabled = true;
             showMessage('smartFillMessage', 'AI 正在识别并校验模板，请稍候...', 'info');
@@ -953,7 +960,11 @@
                 const matched = response.headers.get('X-Smart-Fill-Matched') || '0';
                 const missing = response.headers.get('X-Smart-Fill-Missing') || '0';
                 const cells = response.headers.get('X-Smart-Fill-Cells') || '0';
+                const overwritten = response.headers.get('X-Smart-Fill-Overwritten') || '0';
+                const cleared = response.headers.get('X-Smart-Fill-Cleared') || '0';
                 let resultMessage = '填写完成：匹配 '+matched+' 人，写入 '+cells+' 个单元格';
+                if (Number(overwritten) > 0) resultMessage += '（其中覆盖 '+overwritten+' 个）';
+                if (Number(cleared) > 0) resultMessage += '；清除模板旧数据 '+cleared+' 个单元格';
                 if (Number(missing) > 0) resultMessage += '；另有 '+missing+' 个姓名未在数据库中找到';
                 resetSmartFillPreview();
                 showMessage('smartFillMessage', resultMessage+'，文件已开始下载', 'success');

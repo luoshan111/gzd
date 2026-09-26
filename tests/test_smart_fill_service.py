@@ -37,6 +37,119 @@ def analysis(columns, data_end_row=None):
 
 
 class SmartFillServiceTests(unittest.TestCase):
+    def test_replacement_clears_old_values_and_loads_only_database_fields(self):
+        template = workbook_bytes(lambda ws: (
+            ws.append(['项目工资表']),
+            ws.append(['姓名', '身份证号', '银行卡号', '电话', '开户行', '总工资']),
+            ws.append(['张三', '旧身份证', '旧银行卡', '=1+1', '原银行', 8000]),
+        ))
+        employees = {'张三': {
+            'real_name': '张三', 'id_number': '新身份证', 'bank_account': '=安全文本',
+            'phone': '13800000000', 'bank_address': '',
+        }}
+        plan = analysis({'real_name': 'A', 'id_number': 'B', 'bank_account': 'C',
+                         'phone': 'D', 'bank_address': 'E'})
+        with patch.object(service, '_employee_records', return_value=employees):
+            result, summary, _ = service.fill_template(
+                template, names=['张三'], analysis=plan, overwrite=True,
+            )
+        workbook = load_workbook(io.BytesIO(result), data_only=False)
+        ws = workbook.active
+        self.assertEqual(ws['A3'].value, '张三')
+        self.assertEqual(ws['B3'].value, '新身份证')
+        self.assertEqual(ws['C3'].value, '=安全文本')
+        self.assertEqual(ws['C3'].data_type, 's')
+        self.assertEqual(ws['D3'].value, '13800000000')
+        self.assertIsNone(ws['E3'].value)
+        self.assertIsNone(ws['F3'].value)
+        self.assertEqual(summary['cleared_cells'], 6)
+        workbook.close()
+
+    def test_replacement_uses_only_name_list_and_clears_surplus_old_people(self):
+        template = workbook_bytes(lambda ws: (
+            ws.append(['项目工资表']),
+            ws.append(['姓名', '身份证号', '总工资']),
+            ws.append(['张三', '旧身份证', '=1+1']),
+            ws.append(['王五', '王五旧身份证', 7000]),
+        ))
+        employees = {name: {
+            'real_name': name, 'id_number': name + '-新身份证', 'bank_account': '',
+            'phone': '', 'bank_address': '',
+        } for name in ('张三', '李四')}
+        with patch.object(service, '_employee_records', return_value=employees):
+            result, summary, _ = service.fill_template(
+                template, names=['李四'], analysis=analysis({'real_name': 'A', 'id_number': 'B'}),
+                overwrite=True,
+            )
+        workbook = load_workbook(io.BytesIO(result), data_only=False)
+        ws = workbook.active
+        self.assertEqual(ws['A3'].value, '李四')
+        self.assertEqual(ws['B3'].value, '李四-新身份证')
+        self.assertIsNone(ws['A4'].value)
+        self.assertIsNone(ws['B4'].value)
+        self.assertIsNone(ws['C4'].value)
+        self.assertEqual(ws['C3'].value, '=1+1')
+        self.assertEqual(summary['matched'], 1)
+        self.assertEqual(summary['missing'], [])
+        self.assertEqual(summary['cleared_cells'], 5)
+        workbook.close()
+
+    def test_replacement_reuses_cleared_detail_row_and_preserves_summary(self):
+        template = workbook_bytes(lambda ws: (
+            ws.append(['项目工资表']), ws.append(['姓名', '身份证号', '备注']),
+            ws.append([None, '其他人的身份证', None]), ws.append([None, None, '合计']),
+        ))
+        employees = {'李四': {'real_name': '李四', 'id_number': '李四身份证'}}
+        with patch.object(service, '_employee_records', return_value=employees):
+            result, _, _ = service.fill_template(
+                template, names=['李四'], overwrite=True,
+                analysis=analysis({'real_name': 'A', 'id_number': 'B'}),
+            )
+        workbook = load_workbook(io.BytesIO(result))
+        self.assertEqual(workbook.active['A3'].value, '李四')
+        self.assertEqual(workbook.active['B3'].value, '李四身份证')
+        self.assertEqual(workbook.active['C4'].value, '合计')
+        self.assertIsNone(workbook.active['A4'].value)
+        workbook.close()
+
+    def test_replacement_requires_names_before_reading_database(self):
+        template = workbook_bytes(lambda ws: (
+            ws.append(['工资表']), ws.append(['姓名', '身份证号']), ws.append(['张三', '旧值']),
+        ))
+        with patch.object(service, '_employee_records') as records:
+            with self.assertRaisesRegex(service.TemplateFillError, '必须提供姓名名单'):
+                service.fill_template(template, overwrite=True,
+                                      analysis=analysis({'real_name': 'A', 'id_number': 'B'}))
+        records.assert_not_called()
+
+    def test_replacement_reads_database_without_changing_employee_records(self):
+        import sqlite3
+        connection = sqlite3.connect(':memory:')
+        connection.row_factory = sqlite3.Row
+        connection.execute('CREATE TABLE employees '
+                           '(real_name, id_number, bank_account, bank_address, phone, deleted)')
+        connection.execute('INSERT INTO employees VALUES (?,?,?,?,?,?)',
+                           ('李四', '数据库身份证', '000123', '', '', 0))
+        before = list(connection.iterdump())
+        template = workbook_bytes(lambda ws: (
+            ws.append(['工资表']), ws.append(['姓名', '身份证号']),
+            ws.append(['张三', '模板身份证']),
+        ))
+        def read_only_query(statement):
+            self.assertTrue(statement.lstrip().upper().startswith('SELECT '))
+            return [dict(row) for row in connection.execute(statement).fetchall()]
+        with patch.object(service, 'query_all', side_effect=read_only_query):
+            result, _, _ = service.fill_template(
+                template, names=['李四'], overwrite=True,
+                analysis=analysis({'real_name': 'A', 'id_number': 'B'}),
+            )
+        self.assertEqual(list(connection.iterdump()), before)
+        workbook = load_workbook(io.BytesIO(result))
+        self.assertEqual(workbook.active['A3'].value, '李四')
+        self.assertEqual(workbook.active['B3'].value, '数据库身份证')
+        workbook.close()
+        connection.close()
+
     def test_ai_snapshot_contains_headers_but_no_template_data_or_sheet_name(self):
         workbook = Workbook()
         worksheet = workbook.active
@@ -456,6 +569,7 @@ class SmartFillRouteTests(unittest.TestCase):
                 'preview_token': preview_json['preview_token'],
                 'file': (io.BytesIO(b'template'), 'template.xlsx'),
                 'names': json.dumps(['篡改后的姓名'], ensure_ascii=False),
+                'overwrite': '1',
                 'analysis': json.dumps({'columns': {'id_number': 'XFD'}}),
             }, content_type='multipart/form-data')
 
@@ -468,6 +582,39 @@ class SmartFillRouteTests(unittest.TestCase):
         )
         self.assertNotIn(preview_json['preview_token'],
                          import_export_routes._smart_fill_preview_store)
+
+    def test_overwrite_mode_is_bound_to_preview_and_reported_in_download(self):
+        template = workbook_bytes(lambda ws: (
+            ws.append(['项目工资表']), ws.append(['姓名', '身份证号']),
+            ws.append(['张三', '旧身份证']),
+        ))
+        employees = {'张三': {'real_name': '张三', 'id_number': '新身份证'}}
+        plan = analysis({'real_name': 'A', 'id_number': 'B'})
+        with patch.object(import_export_routes, 'prepare_template', return_value=(plan, {})):
+            response = self.client.post('/api/smart-fill-preview', data={
+                'file': (io.BytesIO(template), 'template.xlsx'), 'overwrite': '1',
+                'names': json.dumps(['张三'], ensure_ascii=False),
+            }, content_type='multipart/form-data')
+        data = response.get_json()
+        self.assertTrue(data['overwrite'])
+        with patch.object(service, '_employee_records', return_value=employees):
+            response = self.client.post('/api/smart-fill-confirm', data={
+                'preview_token': data['preview_token'],
+                'file': (io.BytesIO(template), 'template.xlsx'), 'overwrite': '0',
+            }, content_type='multipart/form-data')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['X-Smart-Fill-Cleared'], '2')
+        workbook = load_workbook(io.BytesIO(response.data))
+        self.assertEqual(workbook.active['B3'].value, '新身份证')
+        workbook.close()
+
+    def test_replacement_preview_rejects_empty_name_list(self):
+        with patch.object(import_export_routes, 'prepare_template') as prepare:
+            response = self.client.post('/api/smart-fill-preview', data={
+                'file': (io.BytesIO(b'template'), 'template.xlsx'), 'overwrite': '1',
+            }, content_type='multipart/form-data')
+        self.assertEqual(response.status_code, 422)
+        prepare.assert_not_called()
 
     def test_route_end_to_end_uses_the_client_template(self):
         template = workbook_bytes(lambda ws: (

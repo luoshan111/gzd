@@ -514,6 +514,22 @@ def _copy_template_row(worksheet, source_row: int, target_row: int) -> None:
         worksheet.row_dimensions[target_row].height = worksheet.row_dimensions[source_row].height
 
 
+def _clear_detail_values(worksheet, start: int, end: int, columns: dict) -> int:
+    """清除人员明细区的旧值；员工字段公式清除，其他计算公式保留。"""
+    employee_columns = {column_index_from_string(column) for column in columns.values()}
+    cleared = 0
+    # 只遍历已存在的单元格，不因空白格式范围生成整片单元格。
+    for cell in list(worksheet._cells.values()):
+        if isinstance(cell, MergedCell) or not start <= cell.row <= end:
+            continue
+        if cell.value is not None and (cell.data_type != 'f' or cell.column in employee_columns):
+            cell.value = None
+            cleared += 1
+        cell.comment = None
+        cell.hyperlink = None
+    return cleared
+
+
 def _effective_fill_end(worksheet, table: dict, requested_count: int) -> int:
     """确定可填写区域，并在首个汇总行之前停止。"""
     start = table['data_start_row']
@@ -521,7 +537,7 @@ def _effective_fill_end(worksheet, table: dict, requested_count: int) -> int:
     if declared_end is not None:
         end = declared_end
     else:
-        end = max(worksheet.max_row, start + requested_count - 1)
+        end = max(worksheet.max_row + requested_count, start + requested_count - 1)
         end = min(end, start + MAX_FILL_ROWS - 1)
 
     scan_end = min(end, worksheet.max_row)
@@ -539,8 +555,9 @@ def _employee_records() -> dict:
     return {str(row['real_name']).strip(): row for row in rows}
 
 
-def _write_record(worksheet, row_number: int, columns: dict, record: dict) -> tuple:
-    filled = skipped = 0
+def _write_record(worksheet, row_number: int, columns: dict, record: dict,
+                  overwrite: bool = False) -> tuple:
+    filled = skipped = overwritten = 0
     for field, column in columns.items():
         cell = worksheet[f'{column}{row_number}']
         if isinstance(cell, MergedCell):
@@ -550,29 +567,34 @@ def _write_record(worksheet, row_number: int, columns: dict, record: dict) -> tu
         if not value:
             continue
         if not _is_blank(cell.value):
-            if field == 'real_name' and str(cell.value).strip() == value:
+            if str(cell.value).strip() == value:
                 continue
-            skipped += 1
-            continue
+            if cell.data_type == 'f' or field == 'real_name' or not overwrite:
+                skipped += 1
+                continue
+            overwritten += 1
         cell.value = value
         cell.data_type = 's'
         cell.number_format = '@'
         filled += 1
-    return filled, skipped
+    return filled, skipped, overwritten
 
 
-def fill_template(template_bytes: bytes, names=None, analysis=None) -> tuple:
+def fill_template(template_bytes: bytes, names=None, analysis=None, overwrite=False) -> tuple:
     """识别并填写模板，返回 ``(xlsx 字节, 汇总, 识别方案)``。"""
     workbook = _load_template_workbook(template_bytes)
 
     try:
         analysis = analyze_template(workbook) if analysis is None else _validate_analysis(workbook, analysis)
         requested_names = _normalize_names(names)
+        if overwrite and not requested_names:
+            raise TemplateFillError('清空重填模式必须提供姓名名单，请先在下方添加姓名')
         employees = _employee_records()
         matched_names = set()
         missing_names = set()
         unplaced_names = set()
-        rows_filled = cells_filled = skipped_cells = 0
+        rows_filled = cells_filled = skipped_cells = overwritten_cells = 0
+        cleared_cells = 0
 
         for table in analysis['tables']:
             worksheet = workbook[table['sheet']]
@@ -580,13 +602,41 @@ def fill_template(template_bytes: bytes, names=None, analysis=None) -> tuple:
             name_column = columns['real_name']
             start = table['data_start_row']
 
-            if requested_names:
+            if overwrite:
+                end = _effective_fill_end(worksheet, table, len(requested_names))
+                cleared_cells += _clear_detail_values(worksheet, start, end, columns)
+                available_rows = iter(
+                    row for row in range(start, end + 1)
+                    if _row_is_available(worksheet, row, columns)
+                )
+                for name in requested_names:
+                    record = employees.get(name)
+                    if not record:
+                        missing_names.add(name)
+                        continue
+                    row_number = next(available_rows, None)
+                    if row_number is None:
+                        unplaced_names.add(name)
+                        continue
+                    _copy_template_row(worksheet, start, row_number)
+                    # 员工字段的源公式也不能重新带回旧身份信息。
+                    for column in columns.values():
+                        cell = worksheet[f'{column}{row_number}']
+                        if cell.data_type == 'f':
+                            cell.value = None
+                    filled, skipped, _ = _write_record(worksheet, row_number, columns, record)
+                    if filled:
+                        rows_filled += 1
+                        cells_filled += filled
+                    skipped_cells += skipped
+                    matched_names.add(name)
+            elif requested_names:
                 end = _effective_fill_end(worksheet, table, len(requested_names))
                 existing_rows = {}
                 blank_rows = []
                 for row_number in range(start, end + 1):
                     cell = worksheet[f'{name_column}{row_number}']
-                    if isinstance(cell, MergedCell):
+                    if isinstance(cell, MergedCell) or cell.data_type == 'f':
                         continue
                     if _is_blank(cell.value):
                         if _row_is_available(worksheet, row_number, columns):
@@ -607,28 +657,34 @@ def fill_template(template_bytes: bytes, names=None, analysis=None) -> tuple:
                         row_numbers = [blank_rows.pop(0)]
                         _copy_template_row(worksheet, start, row_numbers[0])
                     for row_number in row_numbers:
-                        filled, skipped = _write_record(worksheet, row_number, columns, record)
+                        filled, skipped, overwritten = _write_record(
+                            worksheet, row_number, columns, record, overwrite=overwrite,
+                        )
                         if filled:
                             rows_filled += 1
                             cells_filled += filled
                         skipped_cells += skipped
+                        overwritten_cells += overwritten
                     matched_names.add(name)
             else:
-                end = table['data_end_row'] or min(worksheet.max_row, start + MAX_FILL_ROWS - 1)
+                end = _effective_fill_end(worksheet, table, 0)
                 for row_number in range(start, end + 1):
                     cell = worksheet[f'{name_column}{row_number}']
-                    if isinstance(cell, MergedCell) or _is_blank(cell.value):
+                    if isinstance(cell, MergedCell) or cell.data_type == 'f' or _is_blank(cell.value):
                         continue
                     name = str(cell.value).strip()
                     record = employees.get(name)
                     if not record:
                         missing_names.add(name)
                         continue
-                    filled, skipped = _write_record(worksheet, row_number, columns, record)
+                    filled, skipped, overwritten = _write_record(
+                        worksheet, row_number, columns, record, overwrite=overwrite,
+                    )
                     if filled:
                         rows_filled += 1
                         cells_filled += filled
                     skipped_cells += skipped
+                    overwritten_cells += overwritten
                     matched_names.add(name)
 
         if unplaced_names:
@@ -640,7 +696,10 @@ def fill_template(template_bytes: bytes, names=None, analysis=None) -> tuple:
                 raise TemplateFillError('所选姓名均未在在职员工数据库中找到，未生成文件')
             raise TemplateFillError('模板姓名列中没有找到可匹配的在职员工；可勾选“使用上方姓名名单”后重试')
         if cells_filled == 0:
-            raise TemplateFillError('没有找到可安全写入的空白目标单元格，未改动模板')
+            raise TemplateFillError(
+                '没有需要更新或可安全写入的目标单元格，未改动模板' if overwrite
+                else '没有找到可安全写入的空白目标单元格，未改动模板'
+            )
 
         workbook.calculation.calcMode = 'auto'
         workbook.calculation.fullCalcOnLoad = True
@@ -655,6 +714,9 @@ def fill_template(template_bytes: bytes, names=None, analysis=None) -> tuple:
             'rows_filled': rows_filled,
             'cells_filled': cells_filled,
             'skipped_cells': skipped_cells,
+            'overwritten_cells': overwritten_cells,
+            'overwrite': bool(overwrite),
+            'cleared_cells': cleared_cells,
             'confidence': analysis['confidence'],
         }
         return output.getvalue(), summary, analysis

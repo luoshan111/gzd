@@ -161,8 +161,10 @@ def register_import_export_routes(app):
         except ValueError as exc:
             return api_err(str(exc))
         try:
+            overwrite = str(request.form.get('overwrite', '')).lower() in {'1', 'true', 'on', 'yes'}
             token, preview = preview_smart_fill(
                 file.read(), names, session.get('user_id'), prepare_fn=prepare_template,
+                overwrite=overwrite,
             )
         except (TemplateAnalysisError, TemplateFillError) as exc:
             return api_err(str(exc), status=422, fallback_available=True)
@@ -174,6 +176,7 @@ def register_import_export_routes(app):
             '模板识别完成，请核对字段映射后确认填写',
             preview_token=token, expires_in=PREVIEW_TTL_SECONDS, preview=preview,
             name_mode='provided' if names else 'template', requested_names=len(names),
+            overwrite=overwrite,
         )
 
     @app.route('/api/smart-fill-confirm', methods=['POST'])
@@ -209,6 +212,8 @@ def register_import_export_routes(app):
         response.headers['X-Smart-Fill-Matched'] = str(summary['matched'])
         response.headers['X-Smart-Fill-Missing'] = str(len(summary['missing']))
         response.headers['X-Smart-Fill-Cells'] = str(summary['cells_filled'])
+        response.headers['X-Smart-Fill-Overwritten'] = str(summary.get('overwritten_cells', 0))
+        response.headers['X-Smart-Fill-Cleared'] = str(summary.get('cleared_cells', 0))
         response.headers['X-Smart-Fill-Confidence'] = f"{analysis['confidence']:.2f}"
         return response
 

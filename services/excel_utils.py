@@ -6,6 +6,7 @@ Excel 导入导出共享逻辑
 import io
 import os
 import re
+from contextlib import closing
 
 from openpyxl import Workbook, load_workbook
 
@@ -279,7 +280,7 @@ def import_employee_rows(rows: list) -> dict:
                 for r in query_all("SELECT real_name, deleted FROM employees")}
 
     inserted = updated = restored = skipped = 0
-    with get_connection() as conn:
+    with closing(get_connection()) as conn, conn:
         for row in rows:
             if row.get('status') == 'error' or not row['real_name']:
                 skipped += 1

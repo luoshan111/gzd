@@ -15,6 +15,7 @@
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
+from pathlib import Path
 
 from pypinyin import lazy_pinyin, Style
 
@@ -60,20 +61,28 @@ EMPLOYEES_SX_INDEX = '''
 # 连接管理
 # ---------------------------------------------------------------------------
 
-def get_connection() -> sqlite3.Connection:
-    """获取数据库连接，查询结果可通过列名访问。"""
-    conn = sqlite3.connect(config.DB_PATH, timeout=10)
+def get_connection(read_only: bool = False) -> sqlite3.Connection:
+    """获取连接；写入通道默认可写，查询通道显式使用只读连接。"""
+    if read_only:
+        # URI 编码可正确处理路径中的空格、中文及 # 等字符。
+        database_uri = Path(config.DB_PATH).resolve().as_uri() + '?mode=ro'
+        conn = sqlite3.connect(database_uri, uri=True, timeout=10)
+        conn.execute('PRAGMA query_only = ON')
+    else:
+        conn = sqlite3.connect(config.DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
 
 
 @contextmanager
-def db_session(commit: bool = False):
+def db_session(commit: bool = False, read_only: bool = False):
     """
     连接上下文管理器：自动关闭连接；commit=True 时正常结束后自动提交。
-    注意：SELECT 不需要 commit；写操作请使用 commit=True。
+    查询请使用 read_only=True；写操作使用 commit=True、read_only=False。
     """
-    conn = get_connection()
+    if read_only and commit:
+        raise ValueError('只读数据库会话不能提交写入')
+    conn = get_connection(read_only=True) if read_only else get_connection()
     try:
         yield conn
         if commit:
@@ -87,14 +96,14 @@ def db_session(commit: bool = False):
 # ---------------------------------------------------------------------------
 
 def query_all(sql: str, params: tuple = ()) -> list:
-    """执行查询，返回 dict 列表。"""
-    with db_session() as conn:
+    """通过只读连接执行查询，返回 dict 列表。"""
+    with db_session(read_only=True) as conn:
         return [dict(row) for row in conn.execute(sql, params).fetchall()]
 
 
 def query_one(sql: str, params: tuple = ()):
-    """执行查询，返回单个 dict；无结果时返回 None。"""
-    with db_session() as conn:
+    """通过只读连接执行查询，返回单个 dict；无结果时返回 None。"""
+    with db_session(read_only=True) as conn:
         row = conn.execute(sql, params).fetchone()
         return dict(row) if row else None
 
@@ -166,9 +175,9 @@ def escape_like(keyword: str) -> str:
 # ---------------------------------------------------------------------------
 
 def query_paginated(sql: str, params: tuple = (), page: int = 1, page_size: int = 20) -> dict:
-    """执行分页查询，返回数据、总数和分页信息。"""
+    """通过只读连接执行分页查询，返回数据、总数和分页信息。"""
     count_sql = f"SELECT COUNT(*) AS total FROM ({sql}) AS paged_query"
-    with db_session() as conn:
+    with db_session(read_only=True) as conn:
         total = conn.execute(count_sql, params).fetchone()['total']
         offset = (page - 1) * page_size
         paginated_sql = f"{sql} LIMIT ? OFFSET ?"

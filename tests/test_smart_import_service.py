@@ -25,9 +25,12 @@ def workbook_bytes(setup):
     return output.getvalue()
 
 
-def employee_connection():
-    connection = sqlite3.connect(':memory:')
+def employee_connection(connection_only=False):
+    # 测试持有独立查询连接；导入连接可以正常关闭，共享同一个内存库。
+    connection = sqlite3.connect('file:gzd-smart-import-tests?mode=memory&cache=shared', uri=True)
     connection.row_factory = sqlite3.Row
+    if connection_only:
+        return connection
     connection.execute('''
         CREATE TABLE employees(
             real_name TEXT PRIMARY KEY,
@@ -101,7 +104,8 @@ class SmartImportServiceTests(unittest.TestCase):
             ('张三', '旧身份证', '原银行卡', '原开户行', '13900000000', 'zs'),
         )
         connection.commit()
-        with patch.object(smart_import_service, 'get_connection', return_value=connection):
+        with patch.object(smart_import_service, 'get_connection',
+                          side_effect=lambda: employee_connection(connection_only=True)):
             update_result = smart_import_service.execute_smart_import(
                 template, analysis, {'update'},
             )
@@ -119,7 +123,8 @@ class SmartImportServiceTests(unittest.TestCase):
             'SELECT 1 FROM employees WHERE real_name=?', ('李四',)
         ).fetchone())
 
-        with patch.object(smart_import_service, 'get_connection', return_value=connection):
+        with patch.object(smart_import_service, 'get_connection',
+                          side_effect=lambda: employee_connection(connection_only=True)):
             new_result = smart_import_service.execute_smart_import(
                 template, analysis, {'new'},
             )
@@ -186,10 +191,12 @@ class SmartImportServiceTests(unittest.TestCase):
              '2026-01-01', 'admin'),
         )
         connection.commit()
-        with patch.object(smart_import_service, 'get_connection', return_value=connection):
+        with patch.object(smart_import_service, 'get_connection',
+                          side_effect=lambda: employee_connection(connection_only=True)):
             with self.assertRaisesRegex(smart_import_service.TemplateFillError, '没有可导入'):
                 smart_import_service.execute_smart_import(template, analysis, {'update'})
-        with patch.object(smart_import_service, 'get_connection', return_value=connection):
+        with patch.object(smart_import_service, 'get_connection',
+                          side_effect=lambda: employee_connection(connection_only=True)):
             result = smart_import_service.execute_smart_import(
                 template, analysis, {'restore'},
             )

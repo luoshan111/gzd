@@ -1,5 +1,7 @@
 """智能识别员工 Excel，并在本地完成预览、分类和安全导入。"""
 
+from contextlib import closing
+
 from openpyxl.cell.cell import MergedCell
 
 from core.db import get_connection, get_pinyin_sx
@@ -130,7 +132,7 @@ def execute_smart_import(template_bytes: bytes, analysis: dict, allowed_statuses
         raise TemplateFillError('请至少选择一种导入操作')
 
     rows, _ = extract_smart_import_rows(template_bytes, analysis)
-    with get_connection() as connection:
+    with closing(get_connection()) as connection, connection:
         connection.execute('BEGIN IMMEDIATE')
         current_rows = connection.execute(
             'SELECT real_name, id_number, bank_account, bank_address, phone, deleted '
