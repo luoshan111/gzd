@@ -1,5 +1,7 @@
 Flask
 openpyxl
+xlrd==2.0.2
+xlwt==1.3.0  # 仅用于生成旧版 Excel 回归测试样本
 pypinyin
 Werkzeug
 openai

@@ -1,6 +1,13 @@
 .vscode/
 __pycache__/
 
+# 本地 Python 运行时新装的旧版 Excel 依赖，不提交第三方包
+.runtime/python/Lib/site-packages/xlrd/
+.runtime/python/Lib/site-packages/xlrd-*.dist-info/
+.runtime/python/Lib/site-packages/xlwt/
+.runtime/python/Lib/site-packages/xlwt-*.dist-info/
+.runtime/python/Scripts/runxlrd.py
+
 # WorkBuddy 本地工作状态数据（记忆、日志等，不进版本库）
 .workbuddy/
 

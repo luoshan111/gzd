@@ -7,7 +7,7 @@ from flask import jsonify, redirect, request, session, url_for
 # API 对外字段白名单：避免把软删除审计字段直接暴露给普通列表接口。
 EMPLOYEE_COLUMNS = 'real_name, id_number, bank_account, bank_address, phone, sx'
 RECYCLE_COLUMNS = EMPLOYEE_COLUMNS + ', deleted_at, deleted_by'
-ALLOWED_UPLOAD_EXTENSIONS = {'.xlsx'}
+ALLOWED_UPLOAD_EXTENSIONS = {'.xlsx', '.xls'}
 
 
 def api_ok(message: str = '', **extra):

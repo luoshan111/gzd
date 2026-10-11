@@ -1,0 +1,104 @@
+/* Hallmark · component: payroll option switches · genre: modern-minimal · theme: existing blue-grey
+ * states: default · hover · focus · active · disabled · loading · error · success
+ * pre-emit critique: P4 H5 E4 S5 R5 V4
+ * component QA: contrast pass (40–41) · responsive pass (320/375/414/768/1280) · slop pass (component scope)
+ */
+@import url("tokens.css");
+
+.smart-fill-options {
+    margin-top: var(--employee-space-lg);
+    font-family: var(--employee-font);
+    color: var(--employee-ink);
+    font-size: var(--employee-text-small);
+    min-width: 0;
+}
+.smart-fill-options-heading { font-size: inherit; font-weight: 700; font-style: normal; }
+.smart-fill-option {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--employee-space-xs) var(--employee-space-md);
+    padding-block: var(--employee-space-md);
+    border-bottom: 1px solid var(--employee-rule);
+}
+.smart-fill-option-title { min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.smart-fill-option-description {
+    grid-column: 1 / -1;
+    line-height: 1.6;
+    color: var(--employee-muted);
+    overflow-wrap: anywhere;
+    min-width: 0;
+}
+.smart-fill-switch {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--employee-space-sm);
+    min-height: 44px;
+    min-width: 104px;
+    padding: var(--employee-space-sm);
+    border: 1px solid var(--employee-rule);
+    border-radius: var(--employee-radius);
+    background: var(--employee-paper);
+    color: var(--employee-muted);
+    font: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.smart-fill-switch-state { min-width: 3em; text-align: center; }
+.smart-fill-switch-track {
+    display: inline-flex;
+    align-items: center;
+    width: 40px;
+    height: 24px;
+    padding: calc(var(--employee-space-xs) - 1px);
+    border: 1px solid var(--employee-muted);
+    border-radius: 24px;
+    background: var(--employee-muted);
+    color: var(--employee-paper);
+}
+.smart-fill-switch-track::after {
+    content: '';
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--employee-paper);
+    transform: translateX(0);
+    transition: transform var(--smart-fill-duration) var(--smart-fill-ease);
+}
+.smart-fill-switch[aria-checked="true"] { color: var(--employee-accent); }
+.smart-fill-switch[aria-checked="true"] .smart-fill-switch-track {
+    background: var(--employee-accent);
+    color: var(--employee-accent-ink);
+    border-color: var(--employee-accent);
+}
+.smart-fill-switch[aria-checked="true"] .smart-fill-switch-track::after { transform: translateX(16px); }
+.smart-fill-switch:focus-visible, .smart-fill-switch.is-focus {
+    outline: 2px solid var(--employee-focus);
+    outline-offset: 3px;
+}
+.smart-fill-switch:active:not(:disabled), .smart-fill-switch.is-active {
+    background: var(--employee-paper-soft);
+    color: var(--employee-ink);
+}
+.smart-fill-switch:disabled { opacity: 0.55; cursor: not-allowed; }
+.smart-fill-options[data-state="loading"] .smart-fill-switch,
+.smart-fill-switch[data-state="loading"] { opacity: 0.7; cursor: wait; }
+.smart-fill-options[data-state="error"] #smartFillUseNames,
+.smart-fill-switch[data-state="error"] { border-color: var(--employee-error); }
+.smart-fill-options[data-state="error"] .smart-fill-mode-summary { color: var(--employee-error); }
+.smart-fill-options[data-state="success"] .smart-fill-mode-summary,
+.smart-fill-switch[data-state="success"] { color: var(--employee-accent); }
+.smart-fill-mode-summary { margin-top: var(--employee-space-md); color: var(--employee-muted); line-height: 1.6; overflow-wrap: anywhere; }
+.smart-fill-switch.is-hover { background: var(--employee-paper-soft); color: var(--employee-ink); }
+@media (hover: hover) and (pointer: fine) {
+    .smart-fill-switch:hover:not(:disabled) { background: var(--employee-paper-soft); color: var(--employee-ink); }
+}
+@media (min-width: 40rem) {
+    .smart-fill-option-description { grid-column: 1; }
+    .smart-fill-switch { grid-column: 2; grid-row: 1 / span 2; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .smart-fill-switch-track::after { transition: none; }
+}

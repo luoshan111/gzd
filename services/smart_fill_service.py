@@ -18,6 +18,8 @@ from openpyxl.utils import column_index_from_string, get_column_letter
 from core import config
 from services.agent_service import get_client
 from core.db import query_all
+from services.legacy_excel import OLE_MAGIC
+from services.legacy_template import LegacyTemplateError, convert_legacy_template
 
 
 FIELD_LABELS = {
@@ -87,8 +89,19 @@ class TemplateFillError(ValueError):
     """模板已识别，但没有安全完成填充。"""
 
 
+def normalize_template_bytes(template_bytes: bytes):
+    """旧版模板必须经原生转换，不能复用仅提取数据的导入适配器。"""
+    if template_bytes.startswith(OLE_MAGIC):
+        try:
+            return convert_legacy_template(template_bytes)
+        except LegacyTemplateError as exc:
+            raise TemplateFillError(str(exc)) from exc
+    return template_bytes
+
+
 def _load_template_workbook(template_bytes: bytes, data_only: bool = False):
     """在交给 openpyxl 前限制 XLSX 压缩包规模，避免压缩炸弹耗尽内存。"""
+    template_bytes = normalize_template_bytes(template_bytes)
     try:
         with zipfile.ZipFile(io.BytesIO(template_bytes)) as archive:
             entries = archive.infolist()
@@ -99,11 +112,11 @@ def _load_template_workbook(template_bytes: bytes, data_only: bool = False):
     except TemplateFillError:
         raise
     except (zipfile.BadZipFile, OSError):
-        raise TemplateFillError('模板解析失败，请确认文件是有效的 .xlsx 文件') from None
+        raise TemplateFillError('模板解析失败，请确认文件是有效的 .xls 或 .xlsx 文件') from None
     try:
         return load_workbook(io.BytesIO(template_bytes), data_only=data_only)
     except Exception:
-        raise TemplateFillError('模板解析失败，请确认文件是有效的 .xlsx 文件') from None
+        raise TemplateFillError('模板解析失败，请确认文件是有效的 .xls 或 .xlsx 文件') from None
 
 
 def _cell_text(value) -> str:
@@ -415,9 +428,9 @@ bank_address（银行地址/开户行）、phone（电话/手机号）。
         raise
 
 
-def prepare_template(template_bytes: bytes) -> tuple:
+def prepare_template(template_bytes: bytes, workbook_loader=None) -> tuple:
     """解析并识别模板，返回可供用户确认的映射预览和已验证方案。"""
-    workbook = _load_template_workbook(template_bytes)
+    workbook = (workbook_loader or _load_template_workbook)(template_bytes)
     try:
         analysis = analyze_template(workbook)
         tables = []

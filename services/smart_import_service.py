@@ -6,11 +6,27 @@ from openpyxl.cell.cell import MergedCell
 
 from core.db import get_connection, get_pinyin_sx
 from services.excel_utils import IMPORT_COLUMNS, _clean_cell, classify_import_rows, summarize_import_rows
+from services.legacy_excel import OLE_MAGIC, load_legacy_xls
 from services.smart_fill_service import (
     FIELD_LABELS, MAX_FILL_ROWS, TemplateFillError,
     _load_template_workbook, _row_contains_summary_marker, _validate_analysis,
-    prepare_template,
+    prepare_template as _prepare_template,
 )
+
+
+def _load_import_template(template_bytes, data_only=False):
+    # Data imports must remain independent of Excel/native template conversion.
+    # The values-only adapter marks BIFF formulas so they cannot enter the DB.
+    if template_bytes.startswith(OLE_MAGIC):
+        try:
+            return load_legacy_xls(template_bytes)
+        except ValueError as exc:
+            raise TemplateFillError(str(exc)) from exc
+    return _load_template_workbook(template_bytes, data_only=data_only)
+
+
+def prepare_template(template_bytes):
+    return _prepare_template(template_bytes, workbook_loader=_load_import_template)
 
 
 def _mapping_preview(analysis: dict) -> list:
@@ -38,7 +54,7 @@ def _mapping_preview(analysis: dict) -> list:
 
 def extract_smart_import_rows(template_bytes: bytes, analysis: dict) -> tuple:
     """使用已验证映射从客户端文件本地提取员工字段，不调用模型。"""
-    workbook = _load_template_workbook(template_bytes, data_only=False)
+    workbook = _load_import_template(template_bytes, data_only=False)
     try:
         analysis = _validate_analysis(workbook, analysis)
         rows = []

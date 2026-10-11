@@ -11,6 +11,7 @@ from contextlib import closing
 from openpyxl import Workbook, load_workbook
 
 from core.db import query_all, get_connection, get_pinyin_sx
+from services.legacy_excel import load_import_workbook
 
 # 导出 Excel 的列名（与模板保持一致）
 EXPORT_COLUMNS = ['姓名', '身份证号', '银行账号', '银行地址', '电话']
@@ -31,7 +32,7 @@ def read_names(path: str, limit: int = None) -> list:
     if not os.path.exists(path):
         raise FileNotFoundError(f'{path} 文件不存在')
 
-    wb = load_workbook(path, read_only=True)
+    wb = load_import_workbook(path)
     try:
         ws = wb.active
         names = []
@@ -178,16 +179,19 @@ def read_employee_excel(source) -> list:
     数值格式的单元格超过 15 位会被 Excel 自身截断，任何工具都无法还原。
     """
     try:
-        workbook = load_workbook(source, read_only=True, data_only=True)
+        workbook = load_import_workbook(source, data_only=False)
         worksheet = workbook.active
-        row_iter = worksheet.iter_rows(values_only=True)
-        headers = next(row_iter, None)
-        if not headers:
-            raise ValueError('文件中没有表头')
-        records = [dict(zip(headers, values)) for values in row_iter]
-        workbook.close()
+        try:
+            row_iter = worksheet.iter_rows()
+            header_cells = next(row_iter, None)
+            if not header_cells:
+                raise ValueError('文件中没有表头')
+            headers = [cell.value for cell in header_cells]
+            records = list(row_iter)
+        finally:
+            workbook.close()
     except Exception:
-        raise ValueError('文件解析失败，请确认是有效的 .xlsx 文件') from None
+        raise ValueError('文件解析失败，请确认是有效的 .xls 或 .xlsx 文件') from None
 
     # 表头标准化：别名 -> 标准字段名
     renamed = {}
@@ -200,11 +204,30 @@ def read_employee_excel(source) -> list:
         raise ValueError('缺少"姓名"列（表头支持：姓名 / real_name）')
 
     rows = []
+    source_indexes = {
+        field: next((index for index, header in enumerate(headers)
+                     if renamed.get(header) == field), None)
+        for field in IMPORT_COLUMNS
+    }
     for excel_row, record in enumerate(records, start=2):  # 数据从第 2 行起
         row = {'_row': excel_row}
+        messages = []
         for field in IMPORT_COLUMNS:
-            source_column = next((column for column, target in renamed.items() if target == field), None)
-            row[field] = _clean_cell(record.get(source_column, '') if source_column else '')
+            index = source_indexes[field]
+            cell = record[index] if index is not None and index < len(record) else None
+            if cell is None:
+                row[field] = ''
+            elif cell.data_type == 'f':
+                row[field] = ''
+                row['_force_error'] = True
+                messages.append(f'{field} 列含公式，不能自动导入')
+            else:
+                row[field] = _clean_cell(cell.value)
+                if field in {'id_number', 'bank_account'} and isinstance(cell.value, (int, float)):
+                    row['_force_error'] = True
+                    messages.append(f'{field} 列为数值格式，可能丢失精度或前导零，请改为文本')
+        if messages:
+            row['_validation_messages'] = messages
         rows.append(row)
     return rows
 

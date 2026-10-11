@@ -19,10 +19,16 @@ def search_employees(keyword: str):
     )
 
 
-def list_employees(page: int, page_size: int):
+def list_employees(page: int, page_size: int, keyword: str = ''):
+    where = 'WHERE deleted = 0'
+    params = ()
+    if keyword:
+        where += " AND (real_name LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\' OR sx LIKE ? ESCAPE '\\')"
+        escaped = f'%{escape_like(keyword)}%'
+        params = (escaped, escaped, escaped)
     return query_paginated(
-        f"SELECT {EMPLOYEE_COLUMNS} FROM employees WHERE deleted = 0 ORDER BY real_name",
-        page=page, page_size=page_size,
+        f"SELECT {EMPLOYEE_COLUMNS} FROM employees {where} ORDER BY real_name",
+        params=params, page=page, page_size=page_size,
     )
 
 

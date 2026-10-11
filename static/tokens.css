@@ -1,0 +1,27 @@
+/* Employee management tokens: preserve the existing system font and blue-grey palette. */
+:root {
+    --employee-font: -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --employee-paper: oklch(100% 0 0);
+    --employee-paper-soft: oklch(98.4% 0.003 248);
+    --employee-ink: oklch(20.8% 0.042 266);
+    --employee-muted: oklch(44.6% 0.043 257);
+    --employee-rule: oklch(92.9% 0.013 256);
+    --employee-accent: oklch(51.1% 0.262 277);
+    --employee-accent-hover: oklch(45.7% 0.24 277);
+    --employee-accent-ink: oklch(100% 0 0);
+    --employee-focus: oklch(37.2% 0.044 257);
+    --employee-error: oklch(50.5% 0.213 27);
+    --employee-backdrop: oklch(20.8% 0.042 266 / 0.35);
+    --employee-radius: 8px;
+    --employee-space-xs: 4px;
+    --employee-space-sm: 8px;
+    --employee-space-md: 12px;
+    --employee-space-lg: 16px;
+    --employee-space-xl: 24px;
+    --employee-text-small: 0.875rem;
+    --employee-text-title: 1.125rem;
+    --employee-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --employee-duration: 220ms;
+    --smart-fill-duration: 120ms;
+    --smart-fill-ease: cubic-bezier(0.65, 0, 0.35, 1);
+}

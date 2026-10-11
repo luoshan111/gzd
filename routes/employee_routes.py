@@ -37,7 +37,8 @@ def register_employee_routes(app):
         if args is None:
             return api_err('分页参数格式错误')
         page, page_size = args
-        return api_ok(**list_employees(page, page_size))
+        keyword = request.args.get('q', '').strip()
+        return api_ok(**list_employees(page, page_size, keyword))
 
     @app.route('/api/employee', methods=['POST', 'PUT'])
     @login_required

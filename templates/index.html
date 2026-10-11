@@ -1,9 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>员工信息管理系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='employee-list.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='smart-fill.css') }}">
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
@@ -339,6 +341,10 @@
             margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9;
         }
         /* Summary badges row */
+        .input-preview-panel { margin-top: 20px; }
+        .input-preview-panel > summary { cursor: pointer; border-radius: 4px; }
+        .input-preview-panel > summary:focus-visible { outline: 2px solid #4f46e5; outline-offset: 4px; }
+        .input-preview-panel:not([open]) > summary { margin-bottom: 0; }
         .summary-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
         /* Responsive */
         @media (max-width: 768px) {
@@ -410,47 +416,68 @@
 
         <!-- Entry Panel -->
         <div id="entry" class="panel">
-            <div class="card">
-                <div class="card-header">录入 / 更新员工信息</div>
-                <div class="card-body">
-                    <div id="entryMessage"></div>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>姓名 <span style="color:#dc2626">*</span></label>
-                            <input type="text" id="realName" placeholder="请输入姓名">
-                        </div>
-                        <div class="form-group">
-                            <label>身份证号</label>
-                            <input type="text" id="idNumber" placeholder="请输入身份证号">
-                        </div>
-                        <div class="form-group">
-                            <label>银行账号</label>
-                            <input type="text" id="bankAccount" placeholder="请输入银行账号">
-                        </div>
-                        <div class="form-group">
-                            <label>银行地址</label>
-                            <input type="text" id="bankAddress" placeholder="请输入开户行">
-                        </div>
-                        <div class="form-group">
-                            <label>电话</label>
-                            <input type="text" id="phone" placeholder="请输入电话号码">
-                        </div>
+            <div class="card employee-card">
+                <div class="employee-toolbar">
+                    <div class="employee-heading">
+                        <h2>员工列表</h2>
+                        <span id="employeeCount" class="employee-count" role="status">加载中…</span>
                     </div>
-                    <div class="form-actions">
-                        <button class="btn btn-primary" onclick="saveEmployee()">保存</button>
-                        <button class="btn btn-outline" onclick="clearForm()">清空</button>
+                    <button class="employee-button employee-primary" type="button" onclick="openEmployeeDrawer()">新增员工</button>
+                </div>
+                <form id="employeeSearchForm" class="employee-search" role="search">
+                    <label class="employee-sr-only" for="employeeSearchInput">搜索员工姓名、拼音首字母或电话</label>
+                    <input id="employeeSearchInput" type="search" placeholder="搜索姓名、拼音首字母或电话" autocomplete="off">
+                    <button class="employee-button" type="submit">搜索</button>
+                    <button id="employeeSearchReset" class="employee-button" type="button" hidden>重置</button>
+                </form>
+                <div id="employeeListMessage" role="status"></div>
+                <div id="employeeList" aria-busy="false">
+                    <div class="employee-empty"><p>正在加载员工资料…</p></div>
+                </div>
+                <div id="employeePagination" class="employee-pagination"></div>
+            </div>
+        </div>
+
+        <dialog id="employeeDrawer" class="employee-drawer" aria-labelledby="employeeDrawerTitle">
+            <form id="employeeForm" class="employee-form" novalidate>
+                <div class="employee-drawer-header">
+                    <div><h2 id="employeeDrawerTitle">新增员工</h2><p>维护员工的联系与收款资料</p></div>
+                    <button class="employee-button" type="button" onclick="closeEmployeeDrawer()" aria-label="关闭员工资料">关闭</button>
+                </div>
+                <div class="employee-drawer-body">
+                    <div id="entryMessage" role="status"></div>
+                    <div class="employee-field">
+                        <label for="realName">姓名 <span>（必填）</span></label>
+                        <input type="text" id="realName" required autocomplete="name" aria-describedby="employeeNameHint" autofocus>
+                        <p id="employeeNameHint">相同姓名保存时会更新已有资料。</p>
+                    </div>
+                    <div class="employee-field">
+                        <label for="idNumber">身份证号</label>
+                        <input type="text" id="idNumber" inputmode="text">
+                    </div>
+                    <div class="employee-field">
+                        <label for="bankAccount">银行账号</label>
+                        <input type="text" id="bankAccount" inputmode="numeric">
+                    </div>
+                    <div class="employee-field">
+                        <label for="bankAddress">开户行 / 银行地址</label>
+                        <input type="text" id="bankAddress">
+                    </div>
+                    <div class="employee-field">
+                        <label for="phone">电话</label>
+                        <input type="tel" id="phone" autocomplete="tel">
                     </div>
                 </div>
-            </div>
-            <div class="card">
-                <div class="card-header">员工列表</div>
-                <div class="card-body" style="padding:0">
-                    <div id="employeeList">
-                        <div class="empty-state"><p>加载中...</p></div>
-                    </div>
-                    <div id="employeePagination" class="pagination" style="padding:12px 16px"></div>
+                <div class="employee-drawer-footer">
+                    <button class="employee-button" type="button" onclick="clearForm()">清空</button>
+                    <button class="employee-button" type="button" onclick="closeEmployeeDrawer()">取消</button>
+                    <button id="employeeSaveButton" class="employee-button employee-primary" type="submit">保存资料</button>
                 </div>
-            </div>
+            </form>
+        </dialog>
+        <div id="employeeMoreMenu" class="employee-more-menu" popover>
+            <button id="employeeDeleteButton" class="employee-button employee-delete" type="button">删除员工</button>
+            <p>删除后可在回收站恢复</p>
         </div>
 
         <!-- Export Panel -->
@@ -459,7 +486,7 @@
                 <div class="card-header">智能填写工资表模板</div>
                 <div class="card-body">
                     <p style="font-size:0.8125rem;color:#64748b;margin-bottom:16px;line-height:1.7">
-                        上传项目自己的 .xlsx 工资表。AI 只识别表头和填写位置，员工信息由本系统在本地写入，原模板格式和公式会保留。
+                        上传项目自己的 .xls 或 .xlsx 工资表。.xls 模板先由服务端 Excel 转换，填写后统一下载 .xlsx；原文件不改动。AI 只识别表头和填写位置，员工信息由本系统本地写入，保留单元格格式、合并区域和公式。
                     </p>
                     <div id="smartFillMessage"></div>
                     <div class="upload-area" id="smartFillUploadArea" onclick="document.getElementById('smartFillFile').click()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('smartFillFile').click()}">
@@ -472,16 +499,28 @@
                             <div class="upload-file-hint">点击此处可重新选择文件</div>
                         </div>
                         <span class="upload-change-hint">更换文件</span>
-                        <input type="file" id="smartFillFile" accept=".xlsx" onchange="updateSmartFillFileState(this)">
+                        <input type="file" id="smartFillFile" accept=".xls,.xlsx" onchange="updateSmartFillFileState(this)">
                     </div>
-                    <label style="display:flex;align-items:flex-start;gap:8px;margin-top:14px;font-size:0.8125rem;color:#475569;cursor:pointer">
-                        <input type="checkbox" id="smartFillUseNames" checked style="margin-top:2px" onchange="resetSmartFillPreview()">
-                        <span>使用下方“手动输入导出”的姓名名单。需要写入哪些人，就在名单中添加哪些人，员工信息从数据库读取。</span>
-                    </label>
-                    <label style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;font-size:0.8125rem;color:#475569;cursor:pointer">
-                        <input type="checkbox" id="smartFillOverwrite" checked style="margin-top:2px" onchange="resetSmartFillPreview()">
-                        <span>清空原有人员，按下方姓名名单重填。清除明细区的旧人员信息及工资、考勤等固定值，保留格式、计算公式和汇总行。本次填表只读取数据库；员工编辑和导入更新仍可写入。取消勾选可使用原来的保留内容填空模式。</span>
-                    </label>
+                    <div class="smart-fill-options" id="smartFillOptions" role="group" aria-labelledby="smartFillOptionsTitle" data-state="default">
+                        <h3 class="smart-fill-options-heading" id="smartFillOptionsTitle">填写选项</h3>
+                        <div class="smart-fill-option">
+                            <span class="smart-fill-option-title" id="smartFillUseNamesTitle">使用姓名名单</span>
+                            <button type="button" class="smart-fill-switch" id="smartFillUseNames" role="switch" aria-checked="false"
+                                    aria-labelledby="smartFillUseNamesTitle" aria-describedby="smartFillUseNamesHelp" onclick="toggleSmartFillOption('smartFillUseNames')">
+                                <span class="smart-fill-switch-state">关闭</span><span class="smart-fill-switch-track" aria-hidden="true"></span>
+                            </button>
+                            <p class="smart-fill-option-description" id="smartFillUseNamesHelp">开启后使用下方“手动输入导出”的姓名名单；关闭时读取模板原有姓名。</p>
+                        </div>
+                        <div class="smart-fill-option">
+                            <span class="smart-fill-option-title" id="smartFillOverwriteTitle">清空原有人员</span>
+                            <button type="button" class="smart-fill-switch" id="smartFillOverwrite" role="switch" aria-checked="false"
+                                    aria-labelledby="smartFillOverwriteTitle" aria-describedby="smartFillOverwriteHelp" onclick="toggleSmartFillOption('smartFillOverwrite')">
+                                <span class="smart-fill-switch-state">关闭</span><span class="smart-fill-switch-track" aria-hidden="true"></span>
+                            </button>
+                            <p class="smart-fill-option-description" id="smartFillOverwriteHelp">开启后清空输出表中识别出的人员明细，按下方名单重填；自动启用“使用姓名名单”。保留格式、计算公式和汇总行。</p>
+                        </div>
+                        <p class="smart-fill-mode-summary" id="smartFillModeSummary" aria-live="polite">当前：保留原有人员和已填内容，只补空白。原模板不覆盖，数据库只读。</p>
+                    </div>
                     <div style="margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
                         <button class="btn btn-primary" id="smartFillBtn" onclick="smartFillTemplate()">识别模板并预览</button>
                         <span style="font-size:0.75rem;color:#94a3b8">识别失败不会改动原文件，可继续使用下方原有导出功能。</span>
@@ -523,12 +562,12 @@
                     </p>
                     <div id="exportMessage"></div>
                     <button class="btn btn-primary" onclick="exportExcel()">导出 Excel</button>
-                    <div style="margin-top:20px">
-                        <div class="section-title">input.xlsx 预览</div>
+                    <details class="input-preview-panel">
+                        <summary class="section-title">input.xlsx 预览</summary>
                         <div id="inputPreview">
                             <div class="empty-state"><p>切换到此标签页后自动加载</p></div>
                         </div>
-                    </div>
+                    </details>
                 </div>
             </div>
         </div>
@@ -539,7 +578,7 @@
                 <div class="card-header">智能导入任意员工表</div>
                 <div class="card-body">
                     <p style="font-size:0.8125rem;color:#64748b;margin-bottom:16px;line-height:1.7">
-                        上传已有的 .xlsx 员工信息表。系统会识别姓名、身份证号、银行卡号、开户行和电话等列，先展示字段映射及新增、更新、恢复分类，再按勾选范围写入数据库。
+                        上传已有的 .xls 或 .xlsx 员工信息表。系统会识别姓名、身份证号、银行卡号、开户行和电话等列，先展示字段映射及新增、更新、恢复分类，再按勾选范围写入数据库。
                     </p>
                     <div id="smartImportMessage"></div>
                     <div class="upload-area" id="smartImportUploadArea" onclick="document.getElementById('smartImportFile').click()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('smartImportFile').click()}">
@@ -552,7 +591,7 @@
                             <div class="upload-file-hint">点击此处可重新选择文件</div>
                         </div>
                         <span class="upload-change-hint">更换文件</span>
-                        <input type="file" id="smartImportFile" accept=".xlsx" onchange="updateSmartImportFileState(this)">
+                        <input type="file" id="smartImportFile" accept=".xls,.xlsx" onchange="updateSmartImportFileState(this)">
                     </div>
                     <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
                         <button class="btn btn-primary" id="smartImportPreviewBtn" onclick="previewSmartImport()">智能识别并预览</button>
@@ -585,6 +624,18 @@
             <div class="card">
                 <div class="card-header">标准格式导入</div>
                 <div class="card-body">
+                    <div style="margin-bottom:18px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc">
+                        <div style="margin-bottom:8px;color:#334155;font-size:0.8125rem;font-weight:600">标准格式示例（第一行为表头）</div>
+                        <div class="table-wrap" style="background:#fff">
+                            <table style="min-width:680px;font-size:0.75rem">
+                                <thead><tr><th>姓名（必需）</th><th>身份证号</th><th>银行账号</th><th>银行地址</th><th>电话</th></tr></thead>
+                                <tbody><tr><td>员工姓名</td><td>文本格式</td><td>文本格式</td><td>开户行名称</td><td>联系电话</td></tr></tbody>
+                            </table>
+                        </div>
+                        <p style="margin-top:8px;color:#64748b;font-size:0.75rem;line-height:1.6">
+                            必须包含“姓名”列；其他列可按需填写。表头也支持 real_name、id_number、bank_account、bank_address、phone，以及“身份证”“银行卡号”“开户行”“手机号”等别名。身份证号和银行账号建议在 Excel 中设为文本格式。
+                        </p>
+                    </div>
                     <div id="importMessage"></div>
                     <div class="upload-area" id="importUploadArea" onclick="document.getElementById('importFile').click()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('importFile').click()}">
                         <div class="icon">&#128196;</div>
@@ -596,7 +647,7 @@
                             <div class="upload-file-hint">点击此处可重新选择文件</div>
                         </div>
                         <span class="upload-change-hint">更换文件</span>
-                        <input type="file" id="importFile" accept=".xlsx" onchange="updateImportFileState(this)">
+                        <input type="file" id="importFile" accept=".xls,.xlsx" onchange="updateImportFileState(this)">
                     </div>
                     <div style="margin-top:12px;display:flex;gap:10px">
                         <button class="btn btn-primary" onclick="previewImport()">解析预览</button>
@@ -706,6 +757,7 @@
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
                 tab.classList.add('active');
+                document.body.classList.toggle('employee-view', tab.dataset.panel === 'entry');
                 document.getElementById(tab.dataset.panel).classList.add('active');
                 if (tab.dataset.panel === 'entry') loadEmployeeList();
                 else if (tab.dataset.panel === 'export') loadInputPreview();
@@ -752,26 +804,173 @@
         /* ===== 员工管理 ===== */
         let empCurrentPage = 1;
         const empPageSize = 20;
+        let employeeKeyword = '';
+        let employeeRequest = 0;
+        let employeeSaving = false;
+        let employeeEditingName = null;
+        let employeeFormSnapshot = '';
+        let employeeMenuRecord = null;
+        const employeeDeleting = new Set();
+        const employeeDrawer = document.getElementById('employeeDrawer');
+        const employeeMoreMenu = document.getElementById('employeeMoreMenu');
+        const employeeFieldIds = ['realName','idNumber','bankAccount','bankAddress','phone'];
+        function employeeFormValues() {
+            return Object.fromEntries(employeeFieldIds.map(id => [id, document.getElementById(id).value.trim()]));
+        }
+        function maskEmployeeNumber(value, prefix) {
+            const text = String(value || '').trim();
+            if (!text) return '—';
+            if (text.length <= 4) return '••••';
+            return (prefix && text.length > 8 ? text.slice(0, 3) : '') + '••••' + text.slice(-4);
+        }
+        function employeeEmpty(message, action, callback) {
+            const box = document.createElement('div');
+            box.className = 'employee-empty';
+            const text = document.createElement('p');
+            text.textContent = message;
+            box.appendChild(text);
+            if (action) {
+                const button = document.createElement('button');
+                button.type = 'button'; button.className = 'employee-button';
+                button.textContent = action; button.addEventListener('click', callback);
+                box.appendChild(button);
+            }
+            document.getElementById('employeeList').replaceChildren(box);
+        }
+        function renderEmployeeTable(records) {
+            const table = document.createElement('table');
+            table.className = 'employee-table';
+            table.setAttribute('aria-label', '员工资料列表');
+            const labels = ['姓名','电话','身份证号','开户行 / 银行地址','银行卡尾号','操作'];
+            const header = table.createTHead().insertRow();
+            labels.forEach(label => {
+                const th = document.createElement('th');
+                th.scope = 'col'; th.textContent = label; header.appendChild(th);
+            });
+            const body = table.createTBody();
+            records.forEach(record => {
+                const row = body.insertRow();
+                const name = document.createElement('th');
+                name.scope = 'row'; name.textContent = record.real_name;
+                row.appendChild(name);
+                const values = [
+                    record.phone || '—', maskEmployeeNumber(record.id_number, true),
+                    record.bank_address || '—', maskEmployeeNumber(record.bank_account, false)
+                ];
+                values.forEach((value, index) => {
+                    const cell = row.insertCell();
+                    cell.dataset.label = labels[index + 1]; cell.textContent = value;
+                });
+                const actions = row.insertCell();
+                actions.className = 'employee-actions-cell';
+                const group = document.createElement('div');
+                group.className = 'employee-row-actions';
+                const edit = document.createElement('button');
+                edit.type = 'button'; edit.className = 'employee-button employee-text-button';
+                edit.textContent = '编辑'; edit.setAttribute('aria-label', '编辑 ' + record.real_name);
+                edit.addEventListener('click', () => editEmployee(record.real_name, record.id_number, record.bank_account, record.bank_address, record.phone));
+                const more = document.createElement('button');
+                more.type = 'button'; more.className = 'employee-button employee-text-button employee-more-button';
+                more.textContent = '更多'; more.setAttribute('aria-label', record.real_name + '的更多操作');
+                more.setAttribute('aria-expanded', 'false');
+                more.setAttribute('aria-controls', 'employeeMoreMenu');
+                more.addEventListener('click', () => openEmployeeMore(record, more));
+                group.append(edit, more); actions.appendChild(group);
+            });
+            document.getElementById('employeeList').replaceChildren(table);
+        }
+        function renderEmployeePagination(data) {
+            const el = document.getElementById('employeePagination');
+            el.replaceChildren();
+            const count = document.createElement('span');
+            count.textContent = data.total ? '显示 ' + ((data.page - 1) * data.page_size + 1) + '–' + ((data.page - 1) * data.page_size + data.data.length) + '，共 ' + data.total + ' 位' : '共 0 位员工';
+            el.appendChild(count);
+            if (data.pages <= 1) return;
+            const controls = document.createElement('div');
+            controls.className = 'employee-pagination-controls';
+            const previous = document.createElement('button');
+            previous.type = 'button'; previous.className = 'employee-button';
+            previous.textContent = '上一页'; previous.disabled = data.page <= 1;
+            previous.addEventListener('click', () => loadEmployeeList(data.page - 1));
+            const info = document.createElement('span');
+            info.textContent = data.page + ' / ' + data.pages;
+            const next = document.createElement('button');
+            next.type = 'button'; next.className = 'employee-button';
+            next.textContent = '下一页'; next.disabled = data.page >= data.pages;
+            next.addEventListener('click', () => loadEmployeeList(data.page + 1));
+            controls.append(previous, info, next); el.appendChild(controls);
+        }
         async function loadEmployeeList(page) {
             if (page !== undefined) empCurrentPage = page;
+            const requestId = ++employeeRequest;
+            const list = document.getElementById('employeeList');
+            const count = document.getElementById('employeeCount');
+            list.setAttribute('aria-busy', 'true');
+            count.textContent = '加载中…';
+            document.getElementById('employeePagination').querySelectorAll('button').forEach(button => { button.disabled = true; });
+            employeeMoreMenu.hidePopover();
             try {
-                const r = await fetch('/api/employees?page='+empCurrentPage+'&page_size='+empPageSize);
+                const r = await fetch('/api/employees?page='+empCurrentPage+'&page_size='+empPageSize+'&q='+encodeURIComponent(employeeKeyword));
                 const d = await r.json();
-                const c = document.getElementById('employeeList');
-                const pg = document.getElementById('employeePagination');
-                if (d.success && d.data.length > 0) {
-                    let h = '';
-                    d.data.forEach(i => {
-                        h += '<div class="emp-item"><div><div class="emp-name">'+i.real_name+'</div><div class="emp-phone">'+(i.phone||'无电话')+'</div></div><div class="emp-actions"><button class="btn btn-primary btn-sm" onclick="editEmployee(\''+i.real_name+'\',\''+(i.id_number||'')+'\',\''+(i.bank_account||'')+'\',\''+(i.bank_address||'')+'\',\''+(i.phone||'')+'\')">编辑</button><button class="btn btn-danger btn-sm" onclick="deleteEmployee(\''+i.real_name+'\')">删除</button></div></div>';
-                    });
-                    c.innerHTML = h;
-                    renderPagination(pg, d.page, d.pages, d.total, loadEmployeeList);
-                } else {
-                    c.innerHTML = '<div class="empty-state"><p>暂无员工数据</p></div>';
-                    pg.innerHTML = '';
-                }
-            } catch (e) { document.getElementById('employeeList').innerHTML = '<div class="empty-state"><p>加载失败</p></div>'; }
+                if (requestId !== employeeRequest) return;
+                if (!r.ok || !d.success || !Array.isArray(d.data)) throw new Error(d.message || '服务器未返回员工资料');
+                if (d.page > d.pages) { await loadEmployeeList(d.pages); return; }
+                count.textContent = (employeeKeyword ? '找到 ' : '共 ') + d.total + ' 位员工';
+                if (d.data.length) renderEmployeeTable(d.data);
+                else if (employeeKeyword) employeeEmpty('没有找到匹配的员工，请更换关键词。', '查看全部员工', resetEmployeeSearch);
+                else employeeEmpty('还没有员工资料，添加第一位员工后即可制作工资表。', '新增员工', () => openEmployeeDrawer());
+                renderEmployeePagination(d);
+            } catch (e) {
+                if (requestId !== employeeRequest) return;
+                count.textContent = '加载失败';
+                employeeEmpty('员工资料加载失败：' + e.message, '重新加载', () => loadEmployeeList());
+                document.getElementById('employeePagination').replaceChildren();
+            } finally {
+                if (requestId === employeeRequest) list.setAttribute('aria-busy', 'false');
+            }
         }
+        function resetEmployeeSearch() {
+            document.getElementById('employeeSearchInput').value = '';
+            employeeKeyword = '';
+            document.getElementById('employeeSearchReset').hidden = true;
+            loadEmployeeList(1);
+        }
+        document.getElementById('employeeSearchForm').addEventListener('submit', event => {
+            event.preventDefault();
+            employeeKeyword = document.getElementById('employeeSearchInput').value.trim();
+            document.getElementById('employeeSearchReset').hidden = !employeeKeyword;
+            loadEmployeeList(1);
+        });
+        document.getElementById('employeeSearchReset').addEventListener('click', resetEmployeeSearch);
+        document.getElementById('employeeSearchInput').addEventListener('search', event => {
+            if (!event.target.value) resetEmployeeSearch();
+        });
+        function openEmployeeMore(record, button) {
+            const alreadyOpen = employeeMoreMenu.matches(':popover-open') && employeeMenuRecord && employeeMenuRecord.button === button;
+            if (employeeMenuRecord) employeeMenuRecord.button.setAttribute('aria-expanded', 'false');
+            employeeMoreMenu.hidePopover();
+            if (alreadyOpen) return;
+            employeeMenuRecord = {record, button};
+            employeeMoreMenu.showPopover();
+            button.setAttribute('aria-expanded', 'true');
+            const rect = button.getBoundingClientRect();
+            const width = employeeMoreMenu.offsetWidth, height = employeeMoreMenu.offsetHeight;
+            employeeMoreMenu.style.left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)) + 'px';
+            employeeMoreMenu.style.top = Math.max(8, rect.bottom + height + 8 > window.innerHeight ? rect.top - height - 4 : rect.bottom + 4) + 'px';
+            document.getElementById('employeeDeleteButton').focus();
+        }
+        employeeMoreMenu.addEventListener('toggle', event => {
+            if (event.newState === 'closed' && employeeMenuRecord) {
+                employeeMenuRecord.button.setAttribute('aria-expanded', 'false');
+                if (employeeMoreMenu.contains(document.activeElement)) employeeMenuRecord.button.focus({preventScroll: true});
+            }
+        });
+        window.addEventListener('resize', () => employeeMoreMenu.hidePopover());
+        document.getElementById('employeeDeleteButton').addEventListener('click', () => {
+            const target = employeeMenuRecord;
+            employeeMoreMenu.hidePopover();
+            if (target) { target.button.focus(); deleteEmployee(target.record.real_name); }
+        });
         function renderPagination(el, cur, total, count, cb) {
             if (total <= 1) { el.innerHTML = ''; return; }
             let h = '<button '+(cur<=1?'disabled':'')+' data-page="'+(cur-1)+'">上一页</button>';
@@ -781,14 +980,56 @@
             el.querySelectorAll('button').forEach(b => { b.addEventListener('click', function(){ const p=parseInt(this.dataset.page); if(!isNaN(p)) cb(p); }); });
         }
         function editEmployee(n,id,bank,addr,phone) {
+            openEmployeeDrawer({real_name: n, id_number: id, bank_account: bank, bank_address: addr, phone});
+        }
+        function openEmployeeDrawer(record) {
+            if (employeeSaving) return;
+            clearForm();
+            employeeEditingName = record ? record.real_name : null;
+            document.getElementById('employeeDrawerTitle').textContent = record ? '编辑员工' : '新增员工';
+            document.getElementById('realName').readOnly = !!record;
+            document.getElementById('employeeNameHint').textContent = record ? '姓名用于匹配这位员工，其他资料可直接修改。' : '相同姓名保存时会更新已有资料。';
+            const n = record ? record.real_name : '', id = record ? record.id_number || '' : '';
+            const bank = record ? record.bank_account || '' : '', addr = record ? record.bank_address || '' : '', phone = record ? record.phone || '' : '';
             document.getElementById('realName').value=n;
             document.getElementById('idNumber').value=id;
             document.getElementById('bankAccount').value=bank;
             document.getElementById('bankAddress').value=addr;
             document.getElementById('phone').value=phone;
-            document.getElementById('realName').focus();
+            employeeFormSnapshot = JSON.stringify(employeeFormValues());
+            employeeDrawer.showModal();
+            document.getElementById(record ? 'idNumber' : 'realName').focus();
         }
+        function closeEmployeeDrawer() {
+            if (employeeSaving) return;
+            if (JSON.stringify(employeeFormValues()) !== employeeFormSnapshot && !confirm('员工资料尚未保存，确定放弃这次修改吗？')) return;
+            employeeDrawer.close();
+        }
+        employeeDrawer.addEventListener('cancel', event => { event.preventDefault(); closeEmployeeDrawer(); });
+        employeeDrawer.addEventListener('click', event => {
+            const rect = employeeDrawer.getBoundingClientRect();
+            if (event.target === employeeDrawer && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) closeEmployeeDrawer();
+        });
+        employeeDrawer.addEventListener('close', () => {
+            employeeEditingName = null;
+            clearForm();
+        });
+        document.getElementById('employeeForm').addEventListener('submit', event => {
+            event.preventDefault(); saveEmployee();
+        });
+        function validateEmployeeName() {
+            const field = document.getElementById('realName');
+            const valid = !!field.value.trim();
+            field.setAttribute('aria-invalid', String(!valid));
+            document.getElementById('employeeNameHint').textContent = valid ? (employeeEditingName ? '姓名用于匹配这位员工，其他资料可直接修改。' : '相同姓名保存时会更新已有资料。') : '姓名不能为空，请填写员工姓名后保存。';
+            return valid;
+        }
+        document.getElementById('realName').addEventListener('blur', validateEmployeeName);
+        document.getElementById('realName').addEventListener('input', event => {
+            if (event.target.getAttribute('aria-invalid') === 'true') validateEmployeeName();
+        });
         async function saveEmployee() {
+            if (employeeSaving) return;
             const data = {
                 real_name: document.getElementById('realName').value.trim(),
                 id_number: document.getElementById('idNumber').value.trim(),
@@ -796,25 +1037,48 @@
                 bank_address: document.getElementById('bankAddress').value.trim(),
                 phone: document.getElementById('phone').value.trim()
             };
-            if (!data.real_name) { showMessage('entryMessage','姓名为必填项','error'); return; }
+            if (!validateEmployeeName()) { document.getElementById('realName').focus(); return; }
+            employeeSaving = true;
+            const save = document.getElementById('employeeSaveButton');
+            save.disabled = true; save.textContent = '保存中…';
+            document.getElementById('employeeForm').setAttribute('aria-busy', 'true');
+            employeeDrawer.querySelectorAll('input, button').forEach(control => { control.disabled = true; });
             try {
                 const r = await fetch('/api/employee', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
                 const d = await r.json();
-                if (d.success) { showMessage('entryMessage',d.message,'success'); loadEmployeeList(); clearForm(); toast(d.message,'success'); }
+                if (r.ok && d.success) {
+                    employeeDrawer.close();
+                    showMessage('employeeListMessage',d.message,'success');
+                    await loadEmployeeList();
+                }
                 else showMessage('entryMessage',d.message,'error');
             } catch (e) { showMessage('entryMessage','保存失败: '+e.message,'error'); }
+            finally {
+                employeeSaving = false;
+                employeeDrawer.querySelectorAll('input, button').forEach(control => { control.disabled = false; });
+                save.textContent = '保存资料';
+                document.getElementById('employeeForm').setAttribute('aria-busy', 'false');
+                if (!employeeDrawer.open) clearForm();
+            }
         }
         async function deleteEmployee(name) {
+            if (employeeDeleting.has(name)) return;
             if (!confirm('确定要删除 "'+name+'" 吗？\n删除后记录会进入回收站，可随时恢复。')) return;
+            employeeDeleting.add(name);
             try {
                 const r = await fetch('/api/employee/'+encodeURIComponent(name), {method:'DELETE'});
                 const d = await r.json();
-                if (d.success) { showMessage('entryMessage',d.message,'success'); loadEmployeeList(); toast(d.message,'success'); }
-                else showMessage('entryMessage',d.message,'error');
-            } catch (e) { showMessage('entryMessage','删除失败: '+e.message,'error'); }
+                if (r.ok && d.success) { showMessage('employeeListMessage',d.message,'success'); loadEmployeeList(); }
+                else showMessage('employeeListMessage',d.message,'error');
+            } catch (e) { showMessage('employeeListMessage','删除失败: '+e.message,'error'); }
+            finally { employeeDeleting.delete(name); }
         }
         function clearForm() {
-            ['realName','idNumber','bankAccount','bankAddress','phone'].forEach(id => document.getElementById(id).value='');
+            if (employeeSaving) return;
+            employeeFieldIds.forEach(id => { document.getElementById(id).value = id === 'realName' && employeeEditingName ? employeeEditingName : ''; });
+            document.getElementById('realName').removeAttribute('aria-invalid');
+            document.getElementById('entryMessage').replaceChildren();
+            document.getElementById('employeeNameHint').textContent = employeeEditingName ? '姓名用于匹配这位员工，其他资料可直接修改。' : '相同姓名保存时会更新已有资料。';
         }
 
         /* ===== Excel 导出（服务端直接返回文件流，本地保存为下载） ===== */
@@ -851,11 +1115,67 @@
 
         /* ===== 智能填写工资表模板 ===== */
         let smartFillPreviewToken = null;
+        let smartFillPreviewRevision = 0;
+        let smartFillNamesBeforeOverwrite = false;
+        function smartFillOptionEnabled(id) {
+            return document.getElementById(id).getAttribute('aria-checked') === 'true';
+        }
+        function refreshSmartFillOptions() {
+            const group = document.getElementById('smartFillOptions');
+            const names = document.getElementById('smartFillUseNames');
+            const overwrite = document.getElementById('smartFillOverwrite');
+            const busy = group.dataset.state === 'loading';
+            const replacing = smartFillOptionEnabled('smartFillOverwrite');
+            group.setAttribute('aria-busy', String(busy));
+            names.disabled = busy || replacing;
+            overwrite.disabled = busy;
+            [names, overwrite].forEach(button => {
+                button.setAttribute('aria-disabled', String(button.disabled));
+                button.querySelector('.smart-fill-switch-state').textContent = busy
+                    ? '处理中' : smartFillOptionEnabled(button.id) ? '开启' : '关闭';
+            });
+            names.setAttribute('aria-invalid', String(group.dataset.state === 'error'));
+            document.getElementById('smartFillUseNamesHelp').textContent = replacing
+                ? '清空重填必须使用下方姓名名单。要切换姓名来源，请先关闭“清空原有人员”。'
+                : '开启后使用下方“手动输入导出”的姓名名单；关闭时读取模板原有姓名。';
+            const mode = replacing
+                ? '当前：清除输出表人员明细中的旧人员及工资、考勤等固定值，按下方名单重填；保留格式、计算公式和汇总行。'
+                : smartFillOptionEnabled('smartFillUseNames')
+                    ? '当前：使用下方姓名名单，保留已有内容，只补空白。'
+                    : '当前：读取模板原有姓名，保留原有人员和已填内容，只补空白。';
+            document.getElementById('smartFillModeSummary').textContent =
+                group.dataset.errorMessage || mode + '原模板不覆盖，数据库只读。';
+        }
+        function setSmartFillOptionsState(state, message) {
+            const group = document.getElementById('smartFillOptions');
+            group.dataset.state = state;
+            if (message) group.dataset.errorMessage = message;
+            else delete group.dataset.errorMessage;
+            refreshSmartFillOptions();
+        }
+        function toggleSmartFillOption(id) {
+            const button = document.getElementById(id);
+            if (button.disabled) return;
+            const enabled = !smartFillOptionEnabled(id);
+            button.setAttribute('aria-checked', String(enabled));
+            if (id === 'smartFillOverwrite') {
+                const names = document.getElementById('smartFillUseNames');
+                if (enabled) {
+                    smartFillNamesBeforeOverwrite = smartFillOptionEnabled('smartFillUseNames');
+                    names.setAttribute('aria-checked', 'true');
+                } else {
+                    names.setAttribute('aria-checked', String(smartFillNamesBeforeOverwrite));
+                }
+            }
+            resetSmartFillPreview();
+        }
         function resetSmartFillPreview() {
+            smartFillPreviewRevision++;
             smartFillPreviewToken = null;
             document.getElementById('smartFillPreview').style.display = 'none';
             document.getElementById('smartFillPreviewMeta').textContent = '';
             document.getElementById('smartFillPreviewTables').innerHTML = '';
+            setSmartFillOptionsState('default');
         }
         function cancelSmartFillPreview() {
             resetSmartFillPreview();
@@ -868,6 +1188,8 @@
             const file = input.files && input.files[0];
             area.classList.toggle('selected', Boolean(file));
             name.textContent = file ? file.name : '';
+            area.querySelector('.upload-excel-icon').textContent =
+                file && /\.xls$/i.test(file.name) ? 'XLS' : 'XLSX';
         }
         function renderSmartFillPreview(data) {
             const preview = data.preview;
@@ -876,7 +1198,8 @@
                 : '读取模板姓名列';
             document.getElementById('smartFillPreviewMeta').textContent =
                 '识别置信度 '+Math.round(preview.confidence*100)+'%，姓名来源：'+modeText+'；填写方式：'+
-                (data.overwrite ? '清除原有人员，仅按名单重填；数据库只读' : '保留已有信息，只填空白')+'。';
+                (data.overwrite ? '清除原有人员，仅按名单重填；数据库只读' : '保留已有信息，只填空白')+'。'+
+                (preview.converted ? '已将 XLS 模板转换为 XLSX，确认后下载 .xlsx，原文件不覆盖。' : '');
             let html = '';
             preview.tables.forEach((table, index) => {
                 html += '<div style="margin-top:'+(index ? '16px' : '0')+'">';
@@ -894,13 +1217,14 @@
         }
         async function smartFillTemplate() {
             const input = document.getElementById('smartFillFile');
-            const overwrite = document.getElementById('smartFillOverwrite').checked;
-            const useNames = overwrite || document.getElementById('smartFillUseNames').checked;
+            const overwrite = smartFillOptionEnabled('smartFillOverwrite');
+            const useNames = overwrite || smartFillOptionEnabled('smartFillUseNames');
             const button = document.getElementById('smartFillBtn');
             if (!input.files.length) {
                 showMessage('smartFillMessage', '请先选择工资表模板', 'error'); return;
             }
             if (useNames && !nameList.length) {
+                setSmartFillOptionsState('error', '使用姓名名单时需要先添加人员。请在下方姓名名单中添加姓名，再重新识别。');
                 showMessage('smartFillMessage', '请先在下方姓名名单中添加需要写入的人员', 'error'); return;
             }
             const formData = new FormData();
@@ -908,21 +1232,31 @@
             if (useNames) formData.append('names', JSON.stringify(nameList));
             formData.append('overwrite', overwrite ? '1' : '0');
             resetSmartFillPreview();
+            const revision = smartFillPreviewRevision;
+            setSmartFillOptionsState('loading');
             button.disabled = true;
-            showMessage('smartFillMessage', 'AI 正在识别并校验模板，请稍候...', 'info');
+            showMessage('smartFillMessage', /\.xls$/i.test(input.files[0].name)
+                ? '正在转换 XLS 模板并识别校验，请稍候（最多约一分钟）...'
+                : 'AI 正在识别并校验模板，请稍候...', 'info');
             try {
                 const response = await fetch('/api/smart-fill-preview', {method:'POST', body:formData});
                 const data = await response.json();
+                if (revision !== smartFillPreviewRevision) return;
                 if (!response.ok) {
                     showMessage('smartFillMessage', data.message || '模板识别失败，可继续使用原有导出功能', 'error'); return;
                 }
                 smartFillPreviewToken = data.preview_token;
                 renderSmartFillPreview(data);
+                setSmartFillOptionsState('success');
                 showMessage('smartFillMessage', '模板识别完成，请核对下方字段映射', 'info');
             } catch (e) {
+                if (revision !== smartFillPreviewRevision) return;
                 showMessage('smartFillMessage', '模板识别失败: '+e.message+'；可继续使用原有导出功能', 'error');
             } finally {
                 button.disabled = false;
+                if (document.getElementById('smartFillOptions').dataset.state === 'loading') {
+                    setSmartFillOptionsState('default');
+                }
             }
         }
         async function confirmSmartFill() {
@@ -933,6 +1267,7 @@
             const cancelButton = document.getElementById('smartFillCancelBtn');
             confirmButton.disabled = true;
             cancelButton.disabled = true;
+            setSmartFillOptionsState('loading');
             showMessage('smartFillMessage', '正在按已确认的映射填写模板...', 'info');
             try {
                 const input = document.getElementById('smartFillFile');
@@ -973,6 +1308,9 @@
             } finally {
                 confirmButton.disabled = false;
                 cancelButton.disabled = false;
+                if (document.getElementById('smartFillOptions').dataset.state === 'loading') {
+                    setSmartFillOptionsState('default');
+                }
             }
         }
         async function loadInputPreview() {

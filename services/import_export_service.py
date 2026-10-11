@@ -23,7 +23,7 @@ from core.log_utils import db_log, sys_log
 from services.smart_import_service import execute_smart_import, prepare_smart_import
 from services.smart_fill_service import (
     MAX_FILL_ROWS, TemplateAnalysisError, TemplateFillError, fill_template,
-    prepare_template,
+    prepare_template, normalize_template_bytes,
 )
 
 EXPORT_MIMETYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -165,11 +165,16 @@ def preview_smart_fill(template_bytes, names, user_id, prepare_fn=prepare_templa
                        overwrite=False):
     if overwrite and not names:
         raise TemplateFillError('清空重填模式必须提供姓名名单，请先在下方添加姓名')
-    analysis, preview = prepare_fn(template_bytes)
+    normalized = normalize_template_bytes(template_bytes)
+    analysis, preview = prepare_fn(normalized)
+    converted = normalized is not template_bytes
+    preview = {**preview, 'source_format': 'xls' if converted else 'xlsx',
+               'output_format': 'xlsx', 'converted': converted}
     token = _store(
         'smart_fill', user_id,
         template_digest=hashlib.sha256(template_bytes).hexdigest(),
         names=names, analysis=analysis, overwrite=bool(overwrite),
+        converted_template=normalized if converted else None,
     )
     return token, preview
 
@@ -190,7 +195,9 @@ def confirm_smart_fill(token, user_id, template_bytes, original_filename, userna
     fill_options = {'names': item['names'], 'analysis': item['analysis']}
     if item.get('overwrite', False):
         fill_options['overwrite'] = True
-    output_bytes, summary, analysis = fill_fn(template_bytes, **fill_options)
+    output_bytes, summary, analysis = fill_fn(
+        item.get('converted_template') or template_bytes, **fill_options,
+    )
     _remove('smart_fill', token)
     sys_log.info(
         '用户 %s 智能填表: 文件=%s, 匹配=%s, 填写单元格=%s, 置信度=%.2f',

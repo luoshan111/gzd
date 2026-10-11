@@ -38,14 +38,14 @@ def register_import_export_routes(app):
         if not file or not file.filename:
             return api_err('请选择要上传的 Excel 文件')
         if not validate_xlsx_filename(file.filename):
-            return api_err('仅支持 .xlsx 格式文件')
+            return api_err('仅支持 .xls 或 .xlsx 格式文件')
         try:
             rows, summary = preview_import(file.stream)
         except ValueError as exc:
             return api_err(str(exc))
         except Exception as exc:
             sys_log.warning('导入预览解析失败: %s', exc)
-            return api_err('文件解析失败，请确认是有效的 .xlsx 文件')
+            return api_err('文件解析失败，请确认是有效的 .xls 或 .xlsx 文件')
         return api_ok(rows=rows, summary=summary)
 
     @app.route('/api/import-confirm', methods=['POST'])
@@ -64,7 +64,7 @@ def register_import_export_routes(app):
         if not file or not file.filename:
             return api_err('请选择要智能导入的 Excel 文件')
         if not validate_xlsx_filename(file.filename):
-            return api_err('智能导入仅支持 .xlsx 格式文件')
+            return api_err('智能导入仅支持 .xls 或 .xlsx 格式文件')
         try:
             template_bytes = file.read()
             token, preview = preview_smart_import(
@@ -91,7 +91,7 @@ def register_import_export_routes(app):
         if not file or not file.filename:
             return api_err('请重新提交已预览的 Excel 文件')
         if not validate_xlsx_filename(file.filename):
-            return api_err('智能导入仅支持 .xlsx 格式文件')
+            return api_err('智能导入仅支持 .xls 或 .xlsx 格式文件')
         allowed_statuses = {
             status for status, key in (
                 ('new', 'allow_new'), ('update', 'allow_update'), ('restore', 'allow_restore')
@@ -155,7 +155,7 @@ def register_import_export_routes(app):
         if not file or not file.filename:
             return api_err('请选择要填写的 Excel 模板')
         if not validate_xlsx_filename(file.filename):
-            return api_err('智能填表仅支持 .xlsx 格式文件')
+            return api_err('智能填表支持 .xls 或 .xlsx 格式文件')
         try:
             names = parse_names(request.form.get('names', ''))
         except ValueError as exc:
@@ -189,7 +189,7 @@ def register_import_export_routes(app):
         if not file or not file.filename:
             return api_err('请重新提交已预览的 Excel 模板')
         if not validate_xlsx_filename(file.filename):
-            return api_err('智能填表仅支持 .xlsx 格式文件')
+            return api_err('智能填表支持 .xls 或 .xlsx 格式文件')
         try:
             output, summary, analysis, filename = confirm_smart_fill(
                 token, session.get('user_id'), file.read(), file.filename,
@@ -197,10 +197,10 @@ def register_import_export_routes(app):
             )
         except LookupError as exc:
             return api_err(str(exc), status=404)
-        except ValueError as exc:
-            return api_err(str(exc), status=409)
         except (TemplateAnalysisError, TemplateFillError) as exc:
             return api_err(str(exc), status=422, fallback_available=True)
+        except ValueError as exc:
+            return api_err(str(exc), status=409)
         except Exception:
             sys_log.exception('用户 %s 确认智能填表失败', session.get('username'))
             return api_err('智能填表失败，请查看系统日志；现有手动导出仍可使用',
